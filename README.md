@@ -2,7 +2,7 @@
 
 Aplicação nova (construída do zero, sem reaproveitar código de protótipos anteriores) para o Colégio Evolução acompanhar investimento e resultados de tráfego pago (Meta Ads), produzir relatórios e, em etapas futuras, preparar campanhas pausadas para revisão.
 
-Status atual: **Etapa 9 — Rascunhos**, concluída. MVP de acompanhamento (Etapas 1–8) já entregue; integração Meta segue pendente de credenciais reais. Demais etapas (criação pausada, XLSX, Sheets) seguem o planejamento aprovado, uma de cada vez.
+Status atual: **Etapa 9 — Rascunhos**, concluída, mais o **incremento "Área Administrativa / Área de Relatórios"** (perfil Relatório, Relatório Executivo, XLSX). MVP de acompanhamento (Etapas 1–8) já entregue; integração Meta segue pendente de credenciais reais. Demais etapas do planejamento original (criação pausada, Google Sheets) seguem, uma de cada vez.
 
 ## Arquitetura
 
@@ -118,6 +118,19 @@ O frontend faz proxy de `/health`, `/auth`, `/users`, `/metrics`, `/campaigns`, 
 - Bloco "Prévia do anúncio" (Seção 7): imagem, página, título, texto, destino e botão de chamada para ação juntos.
 - Permissões: Admin e Gestor criam/editam; Gestor só vê/edita os próprios rascunhos, Admin vê todos; Visualizador não pode criar nem editar.
 - Durante a validação manual encontrei e corrigi dois bugs reais de UX: (1) salvar um campo (`onBlur`) resincronizava TODOS os campos locais a partir da resposta do servidor, apagando edições ainda não salvas de outros campos preenchidos na mesma interação — corrigido sincronizando o estado local só na primeira carga do rascunho; (2) requisições de salvamento/validação concorrentes podiam chegar fora de ordem e sobrescrever dados mais novos com uma resposta mais antiga — corrigido com um número de sequência que descarta respostas desatualizadas.
+
+## Incremento: Área Administrativa / Área de Relatórios (Relatório Executivo)
+
+- **Não criou um 4º perfil.** O perfil "Relatório" do incremento é o `VIEWER` (Visualizador) já existente, com experiência adaptada: rótulo "Relatório" na interface, home própria e menu simplificado (Relatório da Semana, Histórico, Relatórios, Minha Conta) em vez do menu administrativo completo. Backend não ganhou nenhum papel novo.
+- **Relatório Executivo** (`GET /reports/weeks/:weekStart/executive`): reaproveita `compareWeeks` (Etapa 4), `getFullHierarchy` (Etapa 5), `listObservations` (Etapa 8). Novo: comparação semana atual × anterior nos cards (valor atual/anterior/variação, sem classificar como bom/ruim), distribuição de investimento por campanha, desempenho por segmento, destaques (maior investimento, maior conversas, menor custo por conversa — só fatos matemáticos, sem interpretação), conclusão do responsável (`ReportConclusion`, uma por semana, upsert, com autoria).
+- **Alcance semanal**: mostrado como "indisponível" nos cards/exportações — a especificação já estabelecida (Seção 9/32) proíbe somar alcance diário para representar pessoas únicas da semana, e não há agregado próprio da API do Meta ainda (Etapa 6/7). Não é um dado deixado de fora por engano.
+- **PDF Executivo** (`GET /reports/weeks/:weekStart/executive/pdf`): reaproveita integralmente `drawHeader`/`sectionTitle`/`drawTable`/`drawDailyChart`/`addPageNumbers` do PDF já aprovado — cabeçalho, logo, cores e paginação não foram redesenhados. Ao validar renderizando o PDF como imagem, encontrei e corrigi um bug real: nomes de campanha longos quebravam para a linha da tabela seguinte (o `ellipsis` do PDFKit só trunca com `height` definido) — agora truncam com reticências.
+- **XLSX** (`GET /reports/weeks/:weekStart/executive/xlsx`, biblioteca `exceljs`): duas abas apenas — Resumo e Campanhas, seguindo a estrutura descrita para `Relatorio_Campanhas_Marketing.xlsx` (não recebi o arquivo em si, só a especificação de colunas). Números como números (não texto), formato monetário `R$`, cabeçalho estilizado, autofiltro na aba Campanhas.
+- **Nomes de arquivo**: `Evolucao_Trafego_Relatorio_<inicio>_a_<fim>.pdf/.xlsx`, conforme pedido.
+- **Permissões reforçadas no backend** (não só ocultação de menu): `GET /integrations/meta/status` e `POST /integrations/meta/sync` agora exigem `ADMIN`; todas as rotas de `/drafts` (inclusive leitura) exigem `ADMIN` ou `MANAGER`; conclusão só é editável por `ADMIN`/`MANAGER`, leitura liberada a todos. Testado tentando acessar `/users`, `/integrations/meta/status` e `/drafts` com o perfil Relatório — todas retornam 403 real.
+- **Miniatura de criativo**: não implementada — anúncios sincronizados da Meta não armazenam imagem (só rascunhos têm upload de imagem, Etapa 9, e são coisas não relacionadas). A tabela de campanhas mostra um aviso claro sobre essa limitação em vez de inventar uma miniatura.
+- **Prévia do relatório com inclusão/exclusão de seções por checkbox** (item do incremento) não foi implementada como um modal separado — a própria tela do Relatório Executivo já funciona como prévia completa antes de exportar. Registrado como simplificação, não como pendência esquecida.
+- Gerar dados de teste para os três perfis: `npm run seed:admin`, mais usuários `MANAGER`/`VIEWER` via SQL ou pela tela Administração → Usuários (Etapa 2).
 
 ## Testes
 

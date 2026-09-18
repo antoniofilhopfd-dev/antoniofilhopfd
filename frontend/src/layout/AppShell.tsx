@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 import logoHorizontalBranca from '../assets/brand/logo-horizontal-branca.png'
 import logoSimboloBranco from '../assets/brand/logo-simbolo-branco.png'
 import { useAuth } from '../auth/AuthContext'
-import { NAV_ITEMS, isNavItemVisible } from './navItems'
+import { getNavItemsForRole, isNavItemVisible } from './navItems'
 import './AppShell.css'
 
 type AppShellProps = {
@@ -15,7 +15,7 @@ type AppShellProps = {
 const ROLE_LABEL: Record<string, string> = {
   ADMIN: 'Administrador',
   MANAGER: 'Gestor',
-  VIEWER: 'Visualizador',
+  VIEWER: 'Relatório',
 }
 
 export function AppShell({ activeKey, onNavigate, children }: AppShellProps) {
@@ -24,7 +24,7 @@ export function AppShell({ activeKey, onNavigate, children }: AppShellProps) {
 
   if (!user) return null
 
-  const visibleItems = NAV_ITEMS.filter((item) => isNavItemVisible(item, user.role))
+  const visibleItems = getNavItemsForRole(user.role).filter((item) => isNavItemVisible(item, user.role))
 
   function handleNavigate(key: string) {
     onNavigate(key)

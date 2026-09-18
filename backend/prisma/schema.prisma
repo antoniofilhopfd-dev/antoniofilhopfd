@@ -6,6 +6,8 @@
 // Etapa 6: MetaConnection, SyncLog (integração Meta, leitura limitada).
 // Etapa 8: WeeklyObservation (observações com autoria, relatórios).
 // Etapa 9: Draft (rascunhos de campanha/conjunto/anúncio, com imagem).
+// Incremento "Relatório Executivo": ReportConclusion (conclusão do
+// responsável por semana) + perfil Relatório (reaproveita VIEWER).
 // Demais modelos de domínio entram na etapa 10.
 
 generator client {
@@ -51,6 +53,7 @@ model User {
   sessions           Session[]
   weeklyObservations WeeklyObservation[]
   drafts             Draft[]
+  reportConclusions  ReportConclusion[]
 }
 
 model Session {
@@ -277,4 +280,17 @@ model Draft {
   updatedAt DateTime @updatedAt
 
   @@index([createdById])
+}
+
+// Conclusão do responsável (Admin/Gestor) por semana — campo manual,
+// uma por semana (upsert), nunca substituída por texto automático.
+// O perfil Relatório (VIEWER) só visualiza.
+model ReportConclusion {
+  id        String   @id @default(uuid())
+  weekStart DateTime @unique @db.Date
+  text      String
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

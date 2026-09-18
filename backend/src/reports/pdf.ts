@@ -1,6 +1,17 @@
 import path from "node:path";
 import PDFDocument from "pdfkit";
 import type { ReportData } from "./reportData";
+import type { ExecutiveReport } from "./executiveData";
+
+const SEGMENT_LABEL: Record<string, string> = {
+  EDUCACAO_INFANTIL: "Educação Infantil",
+  ANOS_INICIAIS: "Anos Iniciais",
+  ANOS_FINAIS: "Anos Finais",
+  ENSINO_MEDIO: "Ensino Médio",
+  INSTITUCIONAL: "Institucional",
+  OUTROS: "Outros",
+  SEM_CLASSIFICACAO: "Sem classificação",
+};
 
 // Layout do relatório PDF (Seção 13). Não há PDF de referência do
 // protótipo disponível neste pacote — este layout é uma PROPOSTA
@@ -114,7 +125,16 @@ function drawTable(
       doc.fillColor(TEXT);
     }
     cells.forEach((cell, i) => {
-      doc.text(cell, x + 4, y + 6, { width: columnWidths[i] - 8, ellipsis: true });
+      // "height" é obrigatório para o PDFKit truncar com reticências em
+      // vez de quebrar linha e vazar para a linha da tabela seguinte
+      // (bug real encontrado ao renderizar o PDF: nomes de campanha
+      // longos sobrepunham a linha abaixo).
+      doc.text(cell, x + 4, y + 6, {
+        width: columnWidths[i] - 8,
+        height: rowHeight - 8,
+        ellipsis: true,
+        lineBreak: false,
+      });
       x += columnWidths[i];
     });
     doc.fillColor(TEXT);
@@ -331,6 +351,272 @@ export function generateReportPdf(data: ReportData): PDFKit.PDFDocument {
   (
     doc as PDFKit.PDFDocument & { reportPageCount?: number; reportPageCountBeforeFooters?: number }
   ).reportPageCountBeforeFooters = pageCountBeforeFooters;
+  doc.end();
+  return doc;
+}
+
+function deltaText(current: number, previous: number): string {
+  if (previous === 0) return "—";
+  const delta = ((current - previous) / previous) * 100;
+  const sign = delta > 0 ? "+" : "";
+  return `${sign}${delta.toFixed(1)}%`;
+}
+
+// Relatório Executivo (incremento "área de relatórios"). Reaproveita
+// INTEGRALMENTE o cabeçalho e os helpers de layout do relatório básico
+// (drawHeader, sectionTitle, drawTable, drawDailyChart, addPageNumbers)
+// — nada no cabeçalho foi redesenhado.
+export function generateExecutivePdf(data: ReportData, executive: ExecutiveReport): PDFKit.PDFDocument {
+  const doc = new PDFDocument({ size: "A4", margin: PAGE_MARGIN, bufferPages: true });
+
+  const periodLabel = `${fmtDate(data.week.weekStart)} a ${fmtDate(data.week.weekEnd)} — ${
+    data.week.isPartial ? `parcial (${data.week.daysAvailable} de 7 dias)` : "completa"
+  }${data.week.isDemo ? " — DADOS DE DEMONSTRAÇÃO" : ""}`;
+
+  drawHeader(doc, periodLabel);
+
+  doc
+    .font("Helvetica")
+    .fontSize(8)
+    .fillColor(TEXT_MUTED)
+    .text(`Gerado em ${fmtDateTime(new Date())} · Relatório Executivo`, PAGE_MARGIN, doc.y, {
+      width: doc.page.width - PAGE_MARGIN * 2,
+    });
+  doc.moveDown(0.5);
+
+  sectionTitle(doc, "Resumo");
+  const kpis: [string, string][] = [
+    ["Investimento", fmtCurrency(data.week.totals.spend)],
+    ["Conversas iniciadas", fmtNumber(data.week.totals.resultsConversations)],
+    ["Custo por conversa", fmtCurrency(data.week.totals.costPerResult)],
+    ["Alcance", executive.reachAvailable ? "—" : "indisponível (não somado entre dias)"],
+    ["Cliques no link", fmtNumber(data.week.totals.clicksLink)],
+    ["CPC de link", fmtCurrency(data.week.totals.cpc)],
+  ];
+  drawTable(
+    doc,
+    ["Indicador", "Valor"],
+    kpis.map(([k, v]) => [k, v]),
+    [280, doc.page.width - PAGE_MARGIN * 2 - 280]
+  );
+
+  sectionTitle(doc, "Comparação com semana anterior");
+  if (executive.comparison.comparisonNote) {
+    doc
+      .font("Helvetica")
+      .fontSize(8)
+      .fillColor(TEXT_MUTED)
+      .text(executive.comparison.comparisonNote, PAGE_MARGIN, doc.y, {
+        width: doc.page.width - PAGE_MARGIN * 2,
+      });
+    doc.x = PAGE_MARGIN;
+    doc.moveDown(0.4);
+  }
+  drawTable(
+    doc,
+    ["Métrica", "Atual", "Anterior", "Variação"],
+    [
+      [
+        "Investimento",
+        fmtCurrency(executive.comparison.currentComparable.spend),
+        fmtCurrency(executive.comparison.previousComparable.spend),
+        deltaText(executive.comparison.currentComparable.spend, executive.comparison.previousComparable.spend),
+      ],
+      [
+        "Conversas",
+        fmtNumber(executive.comparison.currentComparable.resultsConversations),
+        fmtNumber(executive.comparison.previousComparable.resultsConversations),
+        deltaText(
+          executive.comparison.currentComparable.resultsConversations,
+          executive.comparison.previousComparable.resultsConversations
+        ),
+      ],
+      [
+        "Custo por conversa",
+        fmtCurrency(executive.comparison.currentComparable.costPerResult),
+        fmtCurrency(executive.comparison.previousComparable.costPerResult),
+        executive.comparison.currentComparable.costPerResult !== null &&
+        executive.comparison.previousComparable.costPerResult !== null
+          ? deltaText(
+              executive.comparison.currentComparable.costPerResult,
+              executive.comparison.previousComparable.costPerResult
+            )
+          : "—",
+      ],
+      [
+        "Cliques no link",
+        fmtNumber(executive.comparison.currentComparable.clicksLink),
+        fmtNumber(executive.comparison.previousComparable.clicksLink),
+        deltaText(executive.comparison.currentComparable.clicksLink, executive.comparison.previousComparable.clicksLink),
+      ],
+    ],
+    [160, 110, 110, doc.page.width - PAGE_MARGIN * 2 - 380]
+  );
+
+  sectionTitle(doc, "Investimento e resultados por dia");
+  drawDailyChart(doc, data.week.daily);
+  doc
+    .font("Helvetica")
+    .fontSize(8)
+    .fillColor(TEXT_MUTED)
+    .text(
+      "Alcance e frequência não são somados entre dias (evita contar a mesma pessoa mais de uma vez); consulte a tela para o valor diário.",
+      PAGE_MARGIN,
+      doc.y,
+      { width: doc.page.width - PAGE_MARGIN * 2 }
+    );
+
+  sectionTitle(doc, "Campanhas");
+  if (executive.campaigns.length === 0) {
+    doc
+      .font("Helvetica")
+      .fontSize(9)
+      .fillColor(TEXT_MUTED)
+      .text("Nenhuma campanha no período.", PAGE_MARGIN, doc.y, { width: doc.page.width - PAGE_MARGIN * 2 });
+  } else {
+    drawTable(
+      doc,
+      ["Campanha", "Segmento", "Investimento", "CPC link", "Cliques link", "Conversas", "Custo/conversa"],
+      executive.campaigns.map((c) => [
+        c.name,
+        c.segment ? SEGMENT_LABEL[c.segment] ?? c.segment : "Sem classificação",
+        fmtCurrency(c.spend),
+        fmtCurrency(c.cpcLink),
+        fmtNumber(c.clicksLink),
+        fmtNumber(c.resultsConversations),
+        fmtCurrency(c.costPerResult),
+      ]),
+      [110, 90, 75, 65, 65, 65, 80]
+    );
+  }
+
+  sectionTitle(doc, "Distribuição do investimento");
+  if (executive.distribution.length === 0) {
+    doc
+      .font("Helvetica")
+      .fontSize(9)
+      .fillColor(TEXT_MUTED)
+      .text("Sem investimento registrado no período.", PAGE_MARGIN, doc.y, {
+        width: doc.page.width - PAGE_MARGIN * 2,
+      });
+  } else {
+    drawTable(
+      doc,
+      ["Campanha", "Investimento", "% do total"],
+      executive.distribution.map((d) => [d.campaignName, fmtCurrency(d.spend), `${d.percent.toFixed(1)}%`]),
+      [260, 120, doc.page.width - PAGE_MARGIN * 2 - 380]
+    );
+  }
+
+  sectionTitle(doc, "Desempenho por segmento");
+  if (executive.segments.length === 0) {
+    doc
+      .font("Helvetica")
+      .fontSize(9)
+      .fillColor(TEXT_MUTED)
+      .text("Sem dados de segmento no período.", PAGE_MARGIN, doc.y, {
+        width: doc.page.width - PAGE_MARGIN * 2,
+      });
+  } else {
+    drawTable(
+      doc,
+      ["Segmento", "Investimento", "Conversas", "Custo/conversa", "CPC link"],
+      executive.segments.map((s) => [
+        SEGMENT_LABEL[s.segment] ?? s.segment,
+        fmtCurrency(s.spend),
+        fmtNumber(s.resultsConversations),
+        fmtCurrency(s.costPerResult),
+        fmtCurrency(s.cpcLink),
+      ]),
+      [110, 90, 80, 90, 80]
+    );
+  }
+
+  sectionTitle(doc, "Destaques da semana");
+  const highlightLines: string[] = [];
+  if (executive.highlights.topSpend) {
+    highlightLines.push(
+      `Maior investimento: ${executive.highlights.topSpend.campaignName} — ${fmtCurrency(executive.highlights.topSpend.spend)}`
+    );
+  }
+  if (executive.highlights.topConversations) {
+    highlightLines.push(
+      `Maior número de conversas: ${executive.highlights.topConversations.campaignName} — ${fmtNumber(
+        executive.highlights.topConversations.resultsConversations
+      )}`
+    );
+  }
+  if (executive.highlights.lowestCostPerResult) {
+    highlightLines.push(
+      `Menor custo por conversa: ${executive.highlights.lowestCostPerResult.campaignName} — ${fmtCurrency(
+        executive.highlights.lowestCostPerResult.costPerResult
+      )}`
+    );
+  }
+  if (highlightLines.length === 0) {
+    highlightLines.push("Sem destaques calculáveis no período.");
+  }
+  for (const line of highlightLines) {
+    ensureSpace(doc, 16);
+    doc.x = PAGE_MARGIN;
+    doc.font("Helvetica").fontSize(9).fillColor(TEXT).text(line, PAGE_MARGIN, doc.y, {
+      width: doc.page.width - PAGE_MARGIN * 2,
+    });
+    doc.x = PAGE_MARGIN;
+  }
+
+  sectionTitle(doc, "Observações");
+  if (data.observations.length === 0) {
+    doc
+      .font("Helvetica")
+      .fontSize(9)
+      .fillColor(TEXT_MUTED)
+      .text("Nenhuma observação registrada para esta semana.", PAGE_MARGIN, doc.y, {
+        width: doc.page.width - PAGE_MARGIN * 2,
+      });
+  } else {
+    const contentWidth = doc.page.width - PAGE_MARGIN * 2;
+    data.observations.forEach((obs) => {
+      ensureSpace(doc, 40);
+      doc.x = PAGE_MARGIN;
+      doc
+        .font("Helvetica-Bold")
+        .fontSize(9)
+        .fillColor(NAVY_DARK)
+        .text(`${obs.authorName} — ${fmtDateTime(obs.createdAt)}`, PAGE_MARGIN, doc.y, { width: contentWidth });
+      doc.x = PAGE_MARGIN;
+      doc.font("Helvetica").fontSize(9).fillColor(TEXT).text(obs.text, PAGE_MARGIN, doc.y, { width: contentWidth });
+      doc.x = PAGE_MARGIN;
+      doc.moveDown(0.6);
+    });
+  }
+
+  sectionTitle(doc, "Conclusão do responsável");
+  if (executive.conclusion) {
+    doc
+      .font("Helvetica-Bold")
+      .fontSize(9)
+      .fillColor(NAVY_DARK)
+      .text(`${executive.conclusion.authorName} — ${fmtDateTime(executive.conclusion.updatedAt)}`, PAGE_MARGIN, doc.y, {
+        width: doc.page.width - PAGE_MARGIN * 2,
+      });
+    doc.x = PAGE_MARGIN;
+    doc
+      .font("Helvetica")
+      .fontSize(9)
+      .fillColor(TEXT)
+      .text(executive.conclusion.text, PAGE_MARGIN, doc.y, { width: doc.page.width - PAGE_MARGIN * 2 });
+  } else {
+    doc
+      .font("Helvetica")
+      .fontSize(9)
+      .fillColor(TEXT_MUTED)
+      .text("Conclusão ainda não registrada para esta semana.", PAGE_MARGIN, doc.y, {
+        width: doc.page.width - PAGE_MARGIN * 2,
+      });
+  }
+
+  addPageNumbers(doc);
   doc.end();
   return doc;
 }

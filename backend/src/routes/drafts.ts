@@ -20,6 +20,9 @@ import { validateDraft } from "../drafts/validation";
 export const draftsRouter = Router();
 
 draftsRouter.use(requireAuth);
+// Rascunhos ficam fora do perfil Relatório por completo (incremento
+// "Área de Relatórios") — inclusive leitura, não só escrita.
+draftsRouter.use(requireRole(UserRole.ADMIN, UserRole.MANAGER));
 
 const upload = multer({
   storage: multer.memoryStorage(),

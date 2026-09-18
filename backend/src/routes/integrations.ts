@@ -9,7 +9,9 @@ export const integrationsRouter = Router();
 
 integrationsRouter.use(requireAuth);
 
-integrationsRouter.get("/integrations/meta/status", async (_req, res) => {
+// Restrito a ADMIN (incremento "Área Administrativa" — Integração Meta
+// e Sincronizações não aparecem para Gestor nem Relatório).
+integrationsRouter.get("/integrations/meta/status", requireRole(UserRole.ADMIN), async (_req, res) => {
   const status = await getConnectionStatus();
   res.json({
     ...status,

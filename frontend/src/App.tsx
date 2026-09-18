@@ -1,21 +1,31 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import './App.css'
 import './components/ui.css'
 import { AuthProvider, useAuth } from './auth/AuthContext'
 import { LoginForm } from './auth/LoginForm'
 import { AppShell } from './layout/AppShell'
-import { NAV_ITEMS } from './layout/navItems'
+import { getDefaultTabForRole, getNavItemsForRole } from './layout/navItems'
 import { UnavailableState } from './components/states/UnavailableState'
 import { DashboardScreen } from './dashboard/DashboardScreen'
 import { CampaignsScreen } from './hierarchy/CampaignsScreen'
 import { AdsScreen } from './hierarchy/AdsScreen'
 import { AdministracaoScreen } from './admin/AdministracaoScreen'
 import { ReportsScreen } from './reports/ReportsScreen'
+import { ExecutiveReportScreen } from './reports/ExecutiveReportScreen'
+import { HistoricoScreen } from './reports/HistoricoScreen'
+import { MinhaContaScreen } from './reports/MinhaContaScreen'
 import { DraftsScreen } from './drafts/DraftsScreen'
 
 function AppContent() {
   const { user, loading } = useAuth()
-  const [activeKey, setActiveKey] = useState('dashboard')
+  const [activeKey, setActiveKey] = useState<string | null>(null)
+  const [reportWeekStart, setReportWeekStart] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (user && activeKey === null) {
+      setActiveKey(getDefaultTabForRole(user.role))
+    }
+  }, [user, activeKey])
 
   if (loading) {
     return (
@@ -29,7 +39,16 @@ function AppContent() {
     return <LoginForm />
   }
 
-  const activeItem = NAV_ITEMS.find((item) => item.key === activeKey)
+  if (activeKey === null) {
+    return null
+  }
+
+  const activeItem = getNavItemsForRole(user.role).find((item) => item.key === activeKey)
+
+  function goToWeekReport(weekStart: string) {
+    setReportWeekStart(weekStart)
+    setActiveKey('relatorio-semana')
+  }
 
   function renderContent() {
     switch (activeKey) {
@@ -77,6 +96,27 @@ function AppContent() {
           <>
             <h1 style={{ marginBottom: 16 }}>Relatórios</h1>
             <ReportsScreen />
+          </>
+        )
+      case 'relatorio-semana':
+        return (
+          <>
+            <h1 style={{ marginBottom: 16 }}>Relatório da Semana</h1>
+            <ExecutiveReportScreen selectedWeekStart={reportWeekStart} onSelectWeek={setReportWeekStart} />
+          </>
+        )
+      case 'historico':
+        return (
+          <>
+            <h1 style={{ marginBottom: 16 }}>Histórico</h1>
+            <HistoricoScreen onSelectWeek={goToWeekReport} />
+          </>
+        )
+      case 'conta':
+        return (
+          <>
+            <h1 style={{ marginBottom: 16 }}>Minha Conta</h1>
+            <MinhaContaScreen />
           </>
         )
       case 'administracao':
