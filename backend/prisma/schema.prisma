@@ -1,7 +1,7 @@
-// Schema inicial da Etapa 1 (Base local).
-// Contém apenas o necessário para validar migração e diagnóstico de conexão.
-// Os modelos de domínio (usuários, contas Meta, campanhas, métricas, etc.)
-// serão adicionados nas etapas correspondentes (2, 5, 6, 7, 9, 10).
+// Schema da aplicação Evolução Tráfego.
+// Etapa 1: SystemStatus (diagnóstico).
+// Etapa 2: User, Session (acesso e perfis).
+// Demais modelos de domínio entram nas etapas 5, 6, 7, 9, 10.
 
 generator client {
   provider = "prisma-client-js"
@@ -17,4 +17,45 @@ model SystemStatus {
   component String   @unique
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+enum UserRole {
+  ADMIN
+  MANAGER
+  VIEWER
+}
+
+model User {
+  id                 String   @id @default(uuid())
+  name               String
+  email              String   @unique
+  passwordHash       String
+  role               UserRole
+  isActive           Boolean  @default(true)
+  // Só tem efeito para MANAGER: permite enviar rascunhos à Meta.
+  // Concedida individualmente por um ADMIN (Seção 5/12 da especificação).
+  canSubmitToMeta    Boolean  @default(false)
+  failedLoginCount   Int      @default(0)
+  lockedUntil        DateTime?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  createdById        String?
+  createdBy          User?    @relation("UserCreatedBy", fields: [createdById], references: [id])
+  createdUsers       User[]   @relation("UserCreatedBy")
+
+  sessions           Session[]
+}
+
+model Session {
+  id         String    @id @default(uuid())
+  tokenHash  String    @unique
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt  DateTime  @default(now())
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  userAgent  String?
+  ipAddress  String?
+
+  @@index([userId])
 }

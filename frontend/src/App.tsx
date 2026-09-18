@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 import './App.css'
+import { AuthProvider, useAuth } from './auth/AuthContext'
+import { LoginForm } from './auth/LoginForm'
 
 type HealthResponse = {
   status: 'ok' | 'error'
@@ -8,7 +10,8 @@ type HealthResponse = {
   timestamp: string
 }
 
-function App() {
+function Diagnostico() {
+  const { user, logout } = useAuth()
   const [health, setHealth] = useState<HealthResponse | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -22,7 +25,13 @@ function App() {
   return (
     <main style={{ fontFamily: 'sans-serif', padding: '2rem' }}>
       <h1>Evolução Tráfego — Diagnóstico</h1>
-      <p>Tela temporária da Etapa 1 (Base local). O layout definitivo será implementado na Etapa 3.</p>
+      <p>
+        Sessão de {user?.name} ({user?.role}).{' '}
+        <button type="button" onClick={() => logout()}>
+          Sair
+        </button>
+      </p>
+      <p>Tela temporária das Etapas 1–2. O layout definitivo será implementado na Etapa 3.</p>
       {error && <p role="alert">{error}</p>}
       {health && (
         <ul>
@@ -33,6 +42,28 @@ function App() {
         </ul>
       )}
     </main>
+  )
+}
+
+function AppContent() {
+  const { user, loading } = useAuth()
+
+  if (loading) {
+    return (
+      <main style={{ fontFamily: 'sans-serif', padding: '2rem' }}>
+        <p>Carregando…</p>
+      </main>
+    )
+  }
+
+  return user ? <Diagnostico /> : <LoginForm />
+}
+
+function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   )
 }
 
