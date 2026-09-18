@@ -1,4 +1,5 @@
 import { Router } from "express";
+import rateLimit from "express-rate-limit";
 import { UserRole } from "@prisma/client";
 import { requireAuth, requireRole } from "../auth/middleware";
 import { MetaApiError } from "../meta/client";
@@ -8,6 +9,16 @@ import { isSchedulerRunning } from "../meta/scheduler";
 export const integrationsRouter = Router();
 
 integrationsRouter.use(requireAuth);
+
+// Dispara chamadas reais contra a API da Meta — evita que uma rajada de
+// requisições (script, clique repetido) sobrecarregue a integração.
+const syncRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Muitas sincronizações em pouco tempo. Tente novamente mais tarde." },
+});
 
 // Restrito a ADMIN (incremento "Área Administrativa" — Integração Meta
 // e Sincronizações não aparecem para Gestor nem Relatório).
@@ -34,7 +45,7 @@ integrationsRouter.post(
 // daysBack: distingue "atualizar recentes" (poucos dias) de "importação
 // histórica" (janela maior), ambas via o mesmo caminho transacional
 // (Seção 3/11 — importação histórica e atualização recente).
-integrationsRouter.post("/integrations/meta/sync", requireRole(UserRole.ADMIN), async (req, res) => {
+integrationsRouter.post("/integrations/meta/sync", requireRole(UserRole.ADMIN), syncRateLimiter, async (req, res) => {
   const rawDaysBack = Number(req.body?.daysBack ?? 7);
   if (!Number.isFinite(rawDaysBack) || rawDaysBack < 1 || rawDaysBack > 365) {
     return res.status(400).json({ error: "daysBack deve estar entre 1 e 365." });

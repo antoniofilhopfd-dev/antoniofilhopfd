@@ -1,6 +1,7 @@
 import path from "node:path";
 import { Router } from "express";
 import multer from "multer";
+import rateLimit from "express-rate-limit";
 import { CallToAction, UserRole } from "@prisma/client";
 import { requireAuth, requireRole } from "../auth/middleware";
 import {
@@ -12,11 +13,24 @@ import {
   getDraft,
   isAllowedImageMimeType,
   listDrafts,
+  matchesImageSignature,
   saveDraftImage,
   updateDraft,
 } from "../drafts/service";
 import { validateDraft } from "../drafts/validation";
 import { SubmissionError, resolveAmbiguousSubmission, submitDraft } from "../drafts/submissionService";
+
+// Cria objetos reais (ainda que pausados) na Meta — limita rajadas mesmo
+// de um usuário já autenticado (o lock de concorrência do submissionService
+// impede duplicar UM rascunho, mas não limita quantos envios diferentes
+// um mesmo usuário dispara em sequência).
+const submitRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Muitas tentativas de envio. Tente novamente mais tarde." },
+});
 
 export const draftsRouter = Router();
 
@@ -188,6 +202,9 @@ draftsRouter.post(
     if (!isAllowedImageMimeType(req.file.mimetype)) {
       return res.status(400).json({ error: "Formato de imagem inválido. Use PNG ou JPEG." });
     }
+    if (!matchesImageSignature(req.file.buffer, req.file.mimetype)) {
+      return res.status(400).json({ error: "O conteúdo do arquivo não corresponde a uma imagem PNG ou JPEG válida." });
+    }
 
     const updated = await saveDraftImage(req.params.id, {
       buffer: req.file.buffer,
@@ -215,6 +232,7 @@ draftsRouter.delete(
 draftsRouter.post(
   "/drafts/:id/submit",
   requireRole(UserRole.ADMIN, UserRole.MANAGER),
+  submitRateLimiter,
   async (req, res) => {
     const access = await ensureDraftAccess(req, req.params.id);
     if ("error" in access) {

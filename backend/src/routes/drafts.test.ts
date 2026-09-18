@@ -144,6 +144,23 @@ describe("upload de imagem", () => {
 
     expect(response.status).toBe(400);
   });
+
+  it("rejeita arquivo cujo conteúdo não corresponde ao mimetype declarado (spoofing)", async () => {
+    const { cookie } = await createUserAndLogin(UserRole.MANAGER);
+    const createResponse = await request(app).post("/drafts").set("Cookie", cookie);
+    const draftId = createResponse.body.id;
+
+    const response = await request(app)
+      .post(`/drafts/${draftId}/image`)
+      .set("Cookie", cookie)
+      .attach("image", Buffer.from("<html>não é uma imagem de verdade</html>"), {
+        filename: "falso.png",
+        contentType: "image/png",
+      });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error).toMatch(/não corresponde/);
+  });
 });
 
 describe("exclusão de rascunho", () => {

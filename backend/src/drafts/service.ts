@@ -87,6 +87,22 @@ export function isAllowedImageMimeType(mimeType: string): boolean {
   return ALLOWED_MIME_TYPES.has(mimeType);
 }
 
+const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+const JPEG_SIGNATURE = Buffer.from([0xff, 0xd8, 0xff]);
+
+// O mimetype do multipart é declarado pelo cliente e pode ser forjado —
+// confere os bytes reais do arquivo (assinatura binária) antes de aceitar,
+// em vez de confiar só no cabeçalho Content-Type.
+export function matchesImageSignature(buffer: Buffer, mimeType: string): boolean {
+  if (mimeType === "image/png") {
+    return buffer.subarray(0, PNG_SIGNATURE.length).equals(PNG_SIGNATURE);
+  }
+  if (mimeType === "image/jpeg") {
+    return buffer.subarray(0, JPEG_SIGNATURE.length).equals(JPEG_SIGNATURE);
+  }
+  return false;
+}
+
 export async function saveDraftImage(
   id: string,
   file: { buffer: Buffer; originalname: string; mimetype: string; size: number }
