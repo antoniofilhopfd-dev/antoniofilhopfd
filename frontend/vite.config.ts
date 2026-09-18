@@ -16,6 +16,7 @@ export default defineConfig({
       '/integrations': 'http://localhost:3333',
       '/observations': 'http://localhost:3333',
       '/reports': 'http://localhost:3333',
+      '/drafts': 'http://localhost:3333',
     },
   },
 })

@@ -11,6 +11,7 @@ import { CampaignsScreen } from './hierarchy/CampaignsScreen'
 import { AdsScreen } from './hierarchy/AdsScreen'
 import { AdministracaoScreen } from './admin/AdministracaoScreen'
 import { ReportsScreen } from './reports/ReportsScreen'
+import { DraftsScreen } from './drafts/DraftsScreen'
 
 function AppContent() {
   const { user, loading } = useAuth()
@@ -62,6 +63,13 @@ function AppContent() {
           <>
             <h1 style={{ marginBottom: 16 }}>Anúncios</h1>
             <AdsScreen />
+          </>
+        )
+      case 'meta-ads':
+        return (
+          <>
+            <h1 style={{ marginBottom: 16 }}>Meta Ads</h1>
+            <DraftsScreen />
           </>
         )
       case 'relatorios':

@@ -2,7 +2,7 @@
 
 Aplicação nova (construída do zero, sem reaproveitar código de protótipos anteriores) para o Colégio Evolução acompanhar investimento e resultados de tráfego pago (Meta Ads), produzir relatórios e, em etapas futuras, preparar campanhas pausadas para revisão.
 
-Status atual: **Etapa 8 — Relatórios MVP**, concluída — **fecha o MVP de acompanhamento** (Seção 17). Etapas 1–7 também concluídas; integração Meta segue pendente de credenciais reais. Demais etapas (rascunhos, criação pausada, XLSX, Sheets) seguem o planejamento aprovado, uma de cada vez.
+Status atual: **Etapa 9 — Rascunhos**, concluída. MVP de acompanhamento (Etapas 1–8) já entregue; integração Meta segue pendente de credenciais reais. Demais etapas (criação pausada, XLSX, Sheets) seguem o planejamento aprovado, uma de cada vez.
 
 ## Arquitetura
 
@@ -39,7 +39,7 @@ npm install
 npm run dev              # sobe em http://localhost:5173
 ```
 
-O frontend faz proxy de `/health`, `/auth`, `/users`, `/metrics`, `/campaigns`, `/adsets`, `/ads`, `/integrations`, `/observations` e `/reports` para o backend (configurado em `vite.config.ts`).
+O frontend faz proxy de `/health`, `/auth`, `/users`, `/metrics`, `/campaigns`, `/adsets`, `/ads`, `/integrations`, `/observations`, `/reports` e `/drafts` para o backend (configurado em `vite.config.ts`).
 
 ## Acesso (Etapa 2)
 
@@ -108,6 +108,16 @@ O frontend faz proxy de `/health`, `/auth`, `/users`, `/metrics`, `/campaigns`, 
   - Durante a validação, encontrei e corrigi dois bugs reais de renderização: (1) o cursor de texto do PDFKit "herdava" a posição X da última célula de tabela desenhada, espremendo títulos de seção numa coluna estreita — corrigido fixando X explicitamente após tabelas/gráfico; (2) o rodapé de numeração, por ficar dentro da margem inferior, fazia o PDFKit criar páginas extras em branco a cada rodapé desenhado — corrigido zerando a margem temporariamente ao desenhar o rodapé. Ambos cobertos por teste automatizado (o segundo como teste de regressão) e conferidos visualmente renderizando o PDF gerado como imagem.
 - CSV (`GET /reports/weeks/:weekStart/csv`): compatível com Excel (BOM UTF-8, separador `;`, decimal com vírgula), protege campos de texto contra injeção de fórmula sem alterar números legítimos.
 - Ambas as exportações sempre correspondem à semana selecionada na tela (mesmo escopo tela↔arquivo, conforme exige a Seção 13).
+
+## Rascunhos (Etapa 9)
+
+- Escopo mantido conforme Seção 12: tráfego para site HTTPS com imagem, um conjunto e um anúncio por rascunho, orçamento em BRL, público amplo por país/idade. **Não envia nada** — isso é a Etapa 10.
+- Editor com abas Campanha/Conjunto/Anúncio/Revisão (melhoria da Seção 7); cada campo é salvo ao perder o foco (persistência incremental), permitindo fechar e recarregar sem perder o que já foi preenchido.
+- Imagem PNG/JPEG (até 5MB) armazenada localmente em `backend/uploads/drafts/` (gitignored; metadados no banco, bytes fora do repositório — Seção 15), servida só para usuários autenticados com acesso ao rascunho.
+- Validação por campo no backend (URL HTTPS, orçamento > 0, idade 13–65, imagem obrigatória, limites de caracteres) — mostrada na aba Revisão sem bloquear salvar um rascunho incompleto.
+- Bloco "Prévia do anúncio" (Seção 7): imagem, página, título, texto, destino e botão de chamada para ação juntos.
+- Permissões: Admin e Gestor criam/editam; Gestor só vê/edita os próprios rascunhos, Admin vê todos; Visualizador não pode criar nem editar.
+- Durante a validação manual encontrei e corrigi dois bugs reais de UX: (1) salvar um campo (`onBlur`) resincronizava TODOS os campos locais a partir da resposta do servidor, apagando edições ainda não salvas de outros campos preenchidos na mesma interação — corrigido sincronizando o estado local só na primeira carga do rascunho; (2) requisições de salvamento/validação concorrentes podiam chegar fora de ordem e sobrescrever dados mais novos com uma resposta mais antiga — corrigido com um número de sequência que descarta respostas desatualizadas.
 
 ## Testes
 

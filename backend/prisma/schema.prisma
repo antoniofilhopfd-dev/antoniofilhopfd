@@ -5,7 +5,8 @@
 // Etapa 5: Campaign, AdSet, Ad, AdDailyMetric (hierarquia e classificação).
 // Etapa 6: MetaConnection, SyncLog (integração Meta, leitura limitada).
 // Etapa 8: WeeklyObservation (observações com autoria, relatórios).
-// Demais modelos de domínio entram nas etapas 9, 10.
+// Etapa 9: Draft (rascunhos de campanha/conjunto/anúncio, com imagem).
+// Demais modelos de domínio entram na etapa 10.
 
 generator client {
   provider = "prisma-client-js"
@@ -49,6 +50,7 @@ model User {
 
   sessions           Session[]
   weeklyObservations WeeklyObservation[]
+  drafts             Draft[]
 }
 
 model Session {
@@ -227,4 +229,52 @@ model WeeklyObservation {
   updatedAt DateTime @updatedAt
 
   @@index([weekStart])
+}
+
+enum CallToAction {
+  SAIBA_MAIS
+  CADASTRE_SE
+  FALE_CONOSCO
+  GARANTA_JA
+}
+
+// Rascunho de campanha/conjunto/anúncio (Seção 12). Escopo desta etapa:
+// tráfego para site HTTPS com imagem, um conjunto e um anúncio por
+// rascunho, orçamento em BRL, público amplo por país/idade. Persistido
+// incrementalmente (cada campo salvo ao editar); envio real (status
+// PAUSED na Meta) é a Etapa 10 — aqui o rascunho nunca é enviado.
+model Draft {
+  id          String   @id @default(uuid())
+  createdById String
+  createdBy   User     @relation(fields: [createdById], references: [id])
+
+  // Campanha
+  campaignName String?
+
+  // Conjunto
+  adSetName   String?
+  dailyBudget Decimal? @db.Decimal(10, 2)
+  country     String?  @default("BR")
+  ageMin      Int?
+  ageMax      Int?
+
+  // Anúncio
+  adName           String?
+  facebookPageName String?
+  title            String?
+  bodyText         String?
+  destinationUrl   String?
+  callToAction     CallToAction?
+
+  // Imagem (armazenamento local nesta fase — Seção 15; metadados aqui,
+  // bytes em disco em backend/uploads/drafts/, nunca no repositório).
+  imageFilename     String?
+  imageOriginalName String?
+  imageMimeType     String?
+  imageSize         Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([createdById])
 }

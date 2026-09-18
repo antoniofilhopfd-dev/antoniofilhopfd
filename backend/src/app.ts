@@ -9,6 +9,7 @@ import { hierarchyRouter } from "./routes/hierarchy";
 import { integrationsRouter } from "./routes/integrations";
 import { observationsRouter } from "./routes/observations";
 import { reportsRouter } from "./routes/reports";
+import { draftsRouter } from "./routes/drafts";
 
 export function createApp() {
   const app = express();
@@ -30,6 +31,7 @@ export function createApp() {
   app.use(integrationsRouter);
   app.use(observationsRouter);
   app.use(reportsRouter);
+  app.use(draftsRouter);
 
   return app;
 }
