@@ -2,7 +2,7 @@
 
 Aplicação nova (construída do zero, sem reaproveitar código de protótipos anteriores) para o Colégio Evolução acompanhar investimento e resultados de tráfego pago (Meta Ads), produzir relatórios e, em etapas futuras, preparar campanhas pausadas para revisão.
 
-Status atual: **Etapa 4 — Dashboard e semanas**, concluída (Etapas 1–3 também concluídas). Demais etapas seguem o planejamento aprovado, uma de cada vez.
+Status atual: **Etapa 5 — Hierarquia**, concluída (Etapas 1–4 também concluídas). Demais etapas seguem o planejamento aprovado, uma de cada vez.
 
 ## Arquitetura
 
@@ -27,6 +27,7 @@ npm install
 npm run prisma:migrate
 npm run seed:admin       # cria o primeiro usuário Administrador (interativo, sem credenciais padrão)
 npm run seed:demo-metrics  # gera ~8 semanas de métricas diárias de DEMONSTRAÇÃO (isDemo=true)
+npm run seed:demo-hierarchy  # gera campanhas/conjuntos/anúncios de DEMONSTRAÇÃO com métricas
 npm run dev              # sobe em http://localhost:3333
 ```
 
@@ -38,7 +39,7 @@ npm install
 npm run dev              # sobe em http://localhost:5173
 ```
 
-O frontend faz proxy de `/health`, `/auth`, `/users` e `/metrics` para o backend (configurado em `vite.config.ts`).
+O frontend faz proxy de `/health`, `/auth`, `/users`, `/metrics`, `/campaigns`, `/adsets` e `/ads` para o backend (configurado em `vite.config.ts`).
 
 ## Acesso (Etapa 2)
 
@@ -67,6 +68,16 @@ O frontend faz proxy de `/health`, `/auth`, `/users` e `/metrics` para o backend
 - Semana parcial identificada e comparação com a semana anterior restrita ao número de dias disponíveis em ambas.
 - Banner "Dados de demonstração" enquanto os registros tiverem `isDemo=true`; nenhuma integração real com o Meta nesta etapa (isso é a Etapa 6).
 - Gerar dados de demonstração: `npm run seed:demo-metrics` (backend).
+
+## Hierarquia (Etapa 5)
+
+- `Campaign` → `AdSet` → `Ad`, com integridade referencial (FKs, `onDelete: Cascade` do pai para os filhos).
+- Métricas diárias armazenadas no nível do Anúncio (`AdDailyMetric`); totais de Conjunto e Campanha são somados a partir dos anúncios filhos — simplificação a revisar na Etapa 6, quando a API do Meta puder fornecer agregados próprios por nível (podem não ser idênticos à soma dos filhos).
+- Segmentos propostos (Educação Infantil, Anos Iniciais, Anos Finais, Ensino Médio, Institucional, Outros) — a confirmar, já que não há classificação anterior de protótipo disponível.
+- Classificação manual (`segmentSource="manual"`) protegida contra sobrescrita por importações futuras — verificado em teste automatizado e manualmente (reseed não altera classificação já definida por um usuário).
+- Listagens de Campanhas e Anúncios com busca por nome, filtro por status (e segmento, nas campanhas), paginação. Anúncios é consulta transversal (não aninhada em campanha/conjunto).
+- Classificação de campanha só pode ser alterada por `ADMIN` ou `MANAGER` (verificado no backend).
+- Gerar dados de demonstração: `npm run seed:demo-hierarchy` (backend; idempotente, não sobrescreve classificação manual).
 
 ## Testes
 

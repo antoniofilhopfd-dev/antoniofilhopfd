@@ -7,6 +7,8 @@ import { AppShell } from './layout/AppShell'
 import { NAV_ITEMS } from './layout/navItems'
 import { UnavailableState } from './components/states/UnavailableState'
 import { DashboardScreen } from './dashboard/DashboardScreen'
+import { CampaignsScreen } from './hierarchy/CampaignsScreen'
+import { AdsScreen } from './hierarchy/AdsScreen'
 
 function AppContent() {
   const { user, loading } = useAuth()
@@ -44,6 +46,20 @@ function AppContent() {
               (Relatórios).
             </p>
             <DashboardScreen />
+          </>
+        )
+      case 'campanhas':
+        return (
+          <>
+            <h1 style={{ marginBottom: 16 }}>Campanhas</h1>
+            <CampaignsScreen />
+          </>
+        )
+      case 'anuncios':
+        return (
+          <>
+            <h1 style={{ marginBottom: 16 }}>Anúncios</h1>
+            <AdsScreen />
           </>
         )
       default:

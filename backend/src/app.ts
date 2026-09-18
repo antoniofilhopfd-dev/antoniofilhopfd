@@ -5,6 +5,7 @@ import { healthRouter } from "./routes/health";
 import { authRouter } from "./routes/auth";
 import { usersRouter } from "./routes/users";
 import { metricsRouter } from "./routes/metrics";
+import { hierarchyRouter } from "./routes/hierarchy";
 
 export function createApp() {
   const app = express();
@@ -22,6 +23,7 @@ export function createApp() {
   app.use(authRouter);
   app.use(usersRouter);
   app.use(metricsRouter);
+  app.use(hierarchyRouter);
 
   return app;
 }

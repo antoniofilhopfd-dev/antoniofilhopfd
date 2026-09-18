@@ -10,6 +10,9 @@ export default defineConfig({
       '/auth': 'http://localhost:3333',
       '/users': 'http://localhost:3333',
       '/metrics': 'http://localhost:3333',
+      '/campaigns': 'http://localhost:3333',
+      '/adsets': 'http://localhost:3333',
+      '/ads': 'http://localhost:3333',
     },
   },
 })
