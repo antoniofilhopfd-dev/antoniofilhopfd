@@ -259,6 +259,60 @@ export async function listAds(params: {
   return { items, page, pageSize, total };
 }
 
+// Árvore completa (campanha -> conjunto -> anúncio) com totais por nível,
+// para uso no relatório PDF/CSV (Etapa 8) — evita N+1 de chamadas de
+// detalhe por campanha/conjunto.
+export async function getFullHierarchy(weekStart?: string) {
+  const period = resolvePeriod(weekStart);
+
+  const campaigns = await prisma.campaign.findMany({
+    orderBy: { name: "asc" },
+    include: {
+      adSets: {
+        orderBy: { name: "asc" },
+        include: { ads: { orderBy: { name: "asc" } } },
+      },
+    },
+  });
+
+  return Promise.all(
+    campaigns.map(async (campaign) => {
+      const adSets = await Promise.all(
+        campaign.adSets.map(async (adSet) => {
+          const ads = await Promise.all(
+            adSet.ads.map(async (ad) => ({
+              id: ad.id,
+              name: ad.name,
+              status: ad.status,
+              totals: await totalsForAdIds([ad.id], period),
+            }))
+          );
+          const adSetTotals = await totalsForAdIds(adSet.ads.map((a) => a.id), period);
+          return {
+            id: adSet.id,
+            name: adSet.name,
+            status: adSet.status,
+            totals: adSetTotals,
+            ads,
+          };
+        })
+      );
+      const campaignTotals = await totalsForAdIds(
+        campaign.adSets.flatMap((s) => s.ads.map((a) => a.id)),
+        period
+      );
+      return {
+        id: campaign.id,
+        name: campaign.name,
+        status: campaign.status,
+        segment: campaign.segment,
+        totals: campaignTotals,
+        adSets,
+      };
+    })
+  );
+}
+
 export async function classifyCampaign(id: string, segment: Segment) {
   return prisma.campaign.update({
     where: { id },

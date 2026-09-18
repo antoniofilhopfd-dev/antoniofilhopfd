@@ -2,7 +2,7 @@
 
 Aplicação nova (construída do zero, sem reaproveitar código de protótipos anteriores) para o Colégio Evolução acompanhar investimento e resultados de tráfego pago (Meta Ads), produzir relatórios e, em etapas futuras, preparar campanhas pausadas para revisão.
 
-Status atual: **Etapa 7 — Sincronização robusta**, concluída tecnicamente e testada com respostas simuladas (Etapas 1–6 também concluídas). Operação real pendente de credenciais Meta — ver seção abaixo. Demais etapas seguem o planejamento aprovado, uma de cada vez.
+Status atual: **Etapa 8 — Relatórios MVP**, concluída — **fecha o MVP de acompanhamento** (Seção 17). Etapas 1–7 também concluídas; integração Meta segue pendente de credenciais reais. Demais etapas (rascunhos, criação pausada, XLSX, Sheets) seguem o planejamento aprovado, uma de cada vez.
 
 ## Arquitetura
 
@@ -39,7 +39,7 @@ npm install
 npm run dev              # sobe em http://localhost:5173
 ```
 
-O frontend faz proxy de `/health`, `/auth`, `/users`, `/metrics`, `/campaigns`, `/adsets`, `/ads` e `/integrations` para o backend (configurado em `vite.config.ts`).
+O frontend faz proxy de `/health`, `/auth`, `/users`, `/metrics`, `/campaigns`, `/adsets`, `/ads`, `/integrations`, `/observations` e `/reports` para o backend (configurado em `vite.config.ts`).
 
 ## Acesso (Etapa 2)
 
@@ -99,6 +99,15 @@ O frontend faz proxy de `/health`, `/auth`, `/users`, `/metrics`, `/campaigns`, 
 - Execução repetida da sincronização (hierarquia + métricas) não duplica registros — upsert por identificador estável, testado rodando duas vezes seguidas.
 - Trava de concorrência (Etapa 6) reforçada com teste de disparo real do agendador em intervalo curto.
 - Configurar: adicionar `META_SYNC_INTERVAL_MINUTES` ao `.env` do backend (deixar ausente mantém o agendamento desligado).
+
+## Relatórios MVP (Etapa 8)
+
+- **Não há PDF de referência do protótipo neste pacote.** O layout do PDF abaixo é uma PROPOSTA seguindo a identidade visual já aplicada (Etapa 3) — apresentada para aprovação, não uma reprodução do PDF refinado citado na Seção 13.
+- Observações semanais com autoria (`WeeklyObservation`), várias por semana; só o próprio autor ou um `ADMIN` pode remover.
+- PDF (`GET /reports/weeks/:weekStart/pdf`): cabeçalho azul-marinho com logo oficial, título "Relatório de Tráfego Pago", período com indicação de semana completa/parcial, indicadores, gráfico diário, tabelas de campanhas/conjuntos/anúncios, observações com autoria, numeração de página.
+  - Durante a validação, encontrei e corrigi dois bugs reais de renderização: (1) o cursor de texto do PDFKit "herdava" a posição X da última célula de tabela desenhada, espremendo títulos de seção numa coluna estreita — corrigido fixando X explicitamente após tabelas/gráfico; (2) o rodapé de numeração, por ficar dentro da margem inferior, fazia o PDFKit criar páginas extras em branco a cada rodapé desenhado — corrigido zerando a margem temporariamente ao desenhar o rodapé. Ambos cobertos por teste automatizado (o segundo como teste de regressão) e conferidos visualmente renderizando o PDF gerado como imagem.
+- CSV (`GET /reports/weeks/:weekStart/csv`): compatível com Excel (BOM UTF-8, separador `;`, decimal com vírgula), protege campos de texto contra injeção de fórmula sem alterar números legítimos.
+- Ambas as exportações sempre correspondem à semana selecionada na tela (mesmo escopo tela↔arquivo, conforme exige a Seção 13).
 
 ## Testes
 

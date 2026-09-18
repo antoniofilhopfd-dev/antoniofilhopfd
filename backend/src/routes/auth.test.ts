@@ -30,11 +30,13 @@ async function createUser(overrides: Partial<{
 }
 
 beforeEach(async () => {
+  await prisma.weeklyObservation.deleteMany();
   await prisma.session.deleteMany();
   await prisma.user.deleteMany();
 });
 
 afterAll(async () => {
+  await prisma.weeklyObservation.deleteMany();
   await prisma.session.deleteMany();
   await prisma.user.deleteMany();
   await prisma.$disconnect();

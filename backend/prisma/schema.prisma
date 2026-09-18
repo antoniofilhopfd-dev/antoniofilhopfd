@@ -4,7 +4,8 @@
 // Etapa 4: DailyMetric (métricas diárias no nível da conta).
 // Etapa 5: Campaign, AdSet, Ad, AdDailyMetric (hierarquia e classificação).
 // Etapa 6: MetaConnection, SyncLog (integração Meta, leitura limitada).
-// Demais modelos de domínio entram nas etapas 7, 9, 10.
+// Etapa 8: WeeklyObservation (observações com autoria, relatórios).
+// Demais modelos de domínio entram nas etapas 9, 10.
 
 generator client {
   provider = "prisma-client-js"
@@ -47,6 +48,7 @@ model User {
   createdUsers       User[]   @relation("UserCreatedBy")
 
   sessions           Session[]
+  weeklyObservations WeeklyObservation[]
 }
 
 model Session {
@@ -210,4 +212,19 @@ model SyncLog {
   triggeredById   String?
 
   @@index([startedAt])
+}
+
+// Observações semanais do gestor, com autoria (Seção 5/9/13). Várias
+// observações por semana são permitidas (cada uma com seu autor e
+// horário), em vez de um campo único sobrescrito.
+model WeeklyObservation {
+  id        String   @id @default(uuid())
+  weekStart DateTime @db.Date
+  text      String
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([weekStart])
 }

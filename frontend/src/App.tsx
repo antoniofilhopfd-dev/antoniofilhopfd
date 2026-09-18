@@ -10,6 +10,7 @@ import { DashboardScreen } from './dashboard/DashboardScreen'
 import { CampaignsScreen } from './hierarchy/CampaignsScreen'
 import { AdsScreen } from './hierarchy/AdsScreen'
 import { AdministracaoScreen } from './admin/AdministracaoScreen'
+import { ReportsScreen } from './reports/ReportsScreen'
 
 function AppContent() {
   const { user, loading } = useAuth()
@@ -61,6 +62,13 @@ function AppContent() {
           <>
             <h1 style={{ marginBottom: 16 }}>Anúncios</h1>
             <AdsScreen />
+          </>
+        )
+      case 'relatorios':
+        return (
+          <>
+            <h1 style={{ marginBottom: 16 }}>Relatórios</h1>
+            <ReportsScreen />
           </>
         )
       case 'administracao':

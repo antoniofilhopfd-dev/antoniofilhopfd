@@ -14,6 +14,8 @@ export default defineConfig({
       '/adsets': 'http://localhost:3333',
       '/ads': 'http://localhost:3333',
       '/integrations': 'http://localhost:3333',
+      '/observations': 'http://localhost:3333',
+      '/reports': 'http://localhost:3333',
     },
   },
 })
