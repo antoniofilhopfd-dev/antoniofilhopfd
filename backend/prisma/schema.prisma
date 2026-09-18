@@ -3,7 +3,8 @@
 // Etapa 2: User, Session (acesso e perfis).
 // Etapa 4: DailyMetric (métricas diárias no nível da conta).
 // Etapa 5: Campaign, AdSet, Ad, AdDailyMetric (hierarquia e classificação).
-// Demais modelos de domínio entram nas etapas 6, 7, 9, 10.
+// Etapa 6: MetaConnection, SyncLog (integração Meta, leitura limitada).
+// Demais modelos de domínio entram nas etapas 7, 9, 10.
 
 generator client {
   provider = "prisma-client-js"
@@ -178,4 +179,35 @@ model AdDailyMetric {
 
   @@unique([adId, date])
   @@index([date])
+}
+
+// Linha única (singleton) com o estado da integração Meta. Token, conta
+// e versão da API são configurados exclusivamente por variável de
+// ambiente (Seção 11) — nunca editáveis pela interface.
+model MetaConnection {
+  id                String    @id @default("singleton")
+  configured        Boolean   @default(false)
+  connectionStatus  String    @default("not_configured") // not_configured | ok | invalid_token | error
+  accountId         String?
+  accountName       String?
+  lastCheckedAt     DateTime?
+  lastCheckedError  String?
+  lastSyncAt        DateTime?
+  lastSyncStatus    String? // success | partial | failed
+  lastSyncError     String?
+  isSyncing         Boolean   @default(false)
+  updatedAt         DateTime  @updatedAt
+}
+
+model SyncLog {
+  id              String    @id @default(uuid())
+  type            String // hierarchy | insights
+  startedAt       DateTime  @default(now())
+  finishedAt      DateTime?
+  status          String // success | failed
+  itemsProcessed  Int       @default(0)
+  errorMessage    String?
+  triggeredById   String?
+
+  @@index([startedAt])
 }

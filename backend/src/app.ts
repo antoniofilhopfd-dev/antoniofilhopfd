@@ -6,6 +6,7 @@ import { authRouter } from "./routes/auth";
 import { usersRouter } from "./routes/users";
 import { metricsRouter } from "./routes/metrics";
 import { hierarchyRouter } from "./routes/hierarchy";
+import { integrationsRouter } from "./routes/integrations";
 
 export function createApp() {
   const app = express();
@@ -24,6 +25,7 @@ export function createApp() {
   app.use(usersRouter);
   app.use(metricsRouter);
   app.use(hierarchyRouter);
+  app.use(integrationsRouter);
 
   return app;
 }

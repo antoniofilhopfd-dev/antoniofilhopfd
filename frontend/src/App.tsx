@@ -9,6 +9,7 @@ import { UnavailableState } from './components/states/UnavailableState'
 import { DashboardScreen } from './dashboard/DashboardScreen'
 import { CampaignsScreen } from './hierarchy/CampaignsScreen'
 import { AdsScreen } from './hierarchy/AdsScreen'
+import { AdministracaoScreen } from './admin/AdministracaoScreen'
 
 function AppContent() {
   const { user, loading } = useAuth()
@@ -60,6 +61,13 @@ function AppContent() {
           <>
             <h1 style={{ marginBottom: 16 }}>Anúncios</h1>
             <AdsScreen />
+          </>
+        )
+      case 'administracao':
+        return (
+          <>
+            <h1 style={{ marginBottom: 16 }}>Administração</h1>
+            <AdministracaoScreen />
           </>
         )
       default:

@@ -13,6 +13,7 @@ export default defineConfig({
       '/campaigns': 'http://localhost:3333',
       '/adsets': 'http://localhost:3333',
       '/ads': 'http://localhost:3333',
+      '/integrations': 'http://localhost:3333',
     },
   },
 })

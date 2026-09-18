@@ -28,6 +28,13 @@
 .button--secondary:hover {
   background: rgba(0, 0, 0, 0.05);
 }
+.button--secondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.button--secondary:disabled:hover {
+  background: transparent;
+}
 
 .card {
   background: var(--color-surface);

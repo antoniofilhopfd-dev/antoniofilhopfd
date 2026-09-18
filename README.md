@@ -2,7 +2,7 @@
 
 Aplicação nova (construída do zero, sem reaproveitar código de protótipos anteriores) para o Colégio Evolução acompanhar investimento e resultados de tráfego pago (Meta Ads), produzir relatórios e, em etapas futuras, preparar campanhas pausadas para revisão.
 
-Status atual: **Etapa 5 — Hierarquia**, concluída (Etapas 1–4 também concluídas). Demais etapas seguem o planejamento aprovado, uma de cada vez.
+Status atual: **Etapa 6 — Leitura Meta limitada**, concluída tecnicamente e testada com respostas simuladas (Etapas 1–5 também concluídas). Operação real pendente de credenciais Meta — ver seção abaixo. Demais etapas seguem o planejamento aprovado, uma de cada vez.
 
 ## Arquitetura
 
@@ -39,7 +39,7 @@ npm install
 npm run dev              # sobe em http://localhost:5173
 ```
 
-O frontend faz proxy de `/health`, `/auth`, `/users`, `/metrics`, `/campaigns`, `/adsets` e `/ads` para o backend (configurado em `vite.config.ts`).
+O frontend faz proxy de `/health`, `/auth`, `/users`, `/metrics`, `/campaigns`, `/adsets`, `/ads` e `/integrations` para o backend (configurado em `vite.config.ts`).
 
 ## Acesso (Etapa 2)
 
@@ -78,6 +78,18 @@ O frontend faz proxy de `/health`, `/auth`, `/users`, `/metrics`, `/campaigns`, 
 - Listagens de Campanhas e Anúncios com busca por nome, filtro por status (e segmento, nas campanhas), paginação. Anúncios é consulta transversal (não aninhada em campanha/conjunto).
 - Classificação de campanha só pode ser alterada por `ADMIN` ou `MANAGER` (verificado no backend).
 - Gerar dados de demonstração: `npm run seed:demo-hierarchy` (backend; idempotente, não sobrescreve classificação manual).
+
+## Integração Meta (Etapa 6)
+
+- **Status real: NÃO CONFIGURADO / NÃO HOMOLOGADO.** Sem `META_ACCESS_TOKEN` e `META_AD_ACCOUNT_ID` no `.env`, a integração fica genuinamente "não configurada" — a interface nunca simula uma conexão (Seção 7/11).
+- Configuração exclusiva por variável de ambiente (nunca editável pela interface): `META_ACCESS_TOKEN`, `META_AD_ACCOUNT_ID`. Versão da API fixada em `backend/src/meta/config.ts` (`v21.0`) — revisar changelog oficial antes de atualizar.
+- Paginação da API nunca segue URLs fora do domínio `graph.facebook.com` (proteção contra redirecionamento arbitrário — Seção 11), testado com uma URL de paginação maliciosa simulada.
+- Erros mapeados por tipo (`invalid_token`, `permission`, `rate_limit`) com tentativas limitadas (retry só em 429).
+- Sincronização de hierarquia usa `externalId` estável (upsert), preserva classificação manual (`segmentSource="manual"`), rejeita o lote inteiro sem gravar nada se faltar um campo obrigatório, e é protegida contra execução concorrente (trava em `MetaConnection.isSyncing`).
+- Sincronização de métricas grava `AdDailyMetric` com `isDemo=false`, "Resultados" mapeado do action_type `onsite_conversion.messaging_conversation_started_7d` (conversas iniciadas, conforme decisão da Seção 20).
+- Log de cada sincronização (`SyncLog`) com status, itens processados e erro, visível no painel Administração → Integração Meta.
+- Toda a lógica de sincronização foi testada com um cliente Meta **simulado** (sem rede real) — 13 testes cobrindo conexão ok/token inválido/não configurado, integridade da hierarquia, preservação de classificação manual, rejeição de lote inconsistente, trava de concorrência, gravação de métricas e restrição de paginação.
+- **Não afirmar que a leitura Meta está "pronta para produção"**: falta homologação com uma conta real autorizada (Seção 3/6 da especificação).
 
 ## Testes
 
