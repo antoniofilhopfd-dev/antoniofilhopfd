@@ -1,0 +1,20 @@
+// Schema inicial da Etapa 1 (Base local).
+// Contém apenas o necessário para validar migração e diagnóstico de conexão.
+// Os modelos de domínio (usuários, contas Meta, campanhas, métricas, etc.)
+// serão adicionados nas etapas correspondentes (2, 5, 6, 7, 9, 10).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model SystemStatus {
+  id        String   @id @default(uuid())
+  component String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
