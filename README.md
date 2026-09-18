@@ -2,7 +2,7 @@
 
 Aplicação nova (construída do zero, sem reaproveitar código de protótipos anteriores) para o Colégio Evolução acompanhar investimento e resultados de tráfego pago (Meta Ads), produzir relatórios e, em etapas futuras, preparar campanhas pausadas para revisão.
 
-Status atual: **Etapa 3 — Navegação**, concluída (Etapas 1 e 2 também concluídas). Demais etapas seguem o planejamento aprovado, uma de cada vez.
+Status atual: **Etapa 4 — Dashboard e semanas**, concluída (Etapas 1–3 também concluídas). Demais etapas seguem o planejamento aprovado, uma de cada vez.
 
 ## Arquitetura
 
@@ -26,6 +26,7 @@ cp .env.example .env   # ajuste DATABASE_URL se necessário
 npm install
 npm run prisma:migrate
 npm run seed:admin       # cria o primeiro usuário Administrador (interativo, sem credenciais padrão)
+npm run seed:demo-metrics  # gera ~8 semanas de métricas diárias de DEMONSTRAÇÃO (isDemo=true)
 npm run dev              # sobe em http://localhost:3333
 ```
 
@@ -37,7 +38,7 @@ npm install
 npm run dev              # sobe em http://localhost:5173
 ```
 
-O frontend faz proxy de `/health`, `/auth` e `/users` para o backend (configurado em `vite.config.ts`).
+O frontend faz proxy de `/health`, `/auth`, `/users` e `/metrics` para o backend (configurado em `vite.config.ts`).
 
 ## Acesso (Etapa 2)
 
@@ -56,6 +57,16 @@ O frontend faz proxy de `/health`, `/auth` e `/users` para o backend (configurad
 - Itens ainda não implementados mostram explicação de indisponibilidade com a etapa do planejamento em que entram, em vez de tela vazia ou botão morto.
 - Componentes reutilizáveis de estado em `frontend/src/components/states/`: `EmptyState`, `LoadingState`, `ErrorState`, `UnavailableState`.
 - Acessibilidade: link "pular para o conteúdo", foco visível com contraste (inclusive sobre o menu azul-marinho), navegação por teclado testada.
+
+## Dashboard e semanas (Etapa 4)
+
+- Semanas domingo–sábado; cálculo em UTC nesta etapa (dados de demonstração) — revisar fuso da conta na Etapa 6.
+- "Resultados" = conversas iniciadas (decisão registrada na Seção 20; não é lead nem matrícula).
+- Totais aditivos (investimento, resultados, impressões, cliques) somados corretamente; CTR/CPC/CPM calculados sobre os totais da semana, não médias de taxas diárias.
+- Alcance e frequência não são somados entre dias (evita contar a mesma pessoa mais de uma vez) — disponíveis só no gráfico diário.
+- Semana parcial identificada e comparação com a semana anterior restrita ao número de dias disponíveis em ambas.
+- Banner "Dados de demonstração" enquanto os registros tiverem `isDemo=true`; nenhuma integração real com o Meta nesta etapa (isso é a Etapa 6).
+- Gerar dados de demonstração: `npm run seed:demo-metrics` (backend).
 
 ## Testes
 

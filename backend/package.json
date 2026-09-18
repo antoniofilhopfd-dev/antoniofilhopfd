@@ -11,6 +11,7 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:migrate:deploy": "prisma migrate deploy",
     "seed:admin": "ts-node-dev --transpile-only src/scripts/seedAdmin.ts",
+    "seed:demo-metrics": "ts-node-dev --transpile-only src/scripts/seedDemoMetrics.ts",
     "test": "vitest run"
   },
   "dependencies": {

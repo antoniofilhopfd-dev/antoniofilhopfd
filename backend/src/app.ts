@@ -4,6 +4,7 @@ import express from "express";
 import { healthRouter } from "./routes/health";
 import { authRouter } from "./routes/auth";
 import { usersRouter } from "./routes/users";
+import { metricsRouter } from "./routes/metrics";
 
 export function createApp() {
   const app = express();
@@ -20,6 +21,7 @@ export function createApp() {
   app.use(healthRouter);
   app.use(authRouter);
   app.use(usersRouter);
+  app.use(metricsRouter);
 
   return app;
 }

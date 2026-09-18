@@ -9,6 +9,7 @@ export default defineConfig({
       '/health': 'http://localhost:3333',
       '/auth': 'http://localhost:3333',
       '/users': 'http://localhost:3333',
+      '/metrics': 'http://localhost:3333',
     },
   },
 })

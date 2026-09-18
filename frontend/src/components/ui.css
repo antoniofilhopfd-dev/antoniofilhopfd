@@ -48,13 +48,15 @@
   font-weight: 700;
   color: var(--color-text-muted);
 }
-.field input {
+.field input,
+.field select {
   padding: 10px 12px;
   border-radius: 8px;
   border: 1px solid var(--color-border);
   background: #fff;
 }
-.field input:focus-visible {
+.field input:focus-visible,
+.field select:focus-visible {
   border-color: var(--color-navy);
 }
 
