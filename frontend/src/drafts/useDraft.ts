@@ -98,5 +98,50 @@ export function useDraft(draftId: string) {
     }
   }
 
-  return { draft, validation, loading, error, saving, save, uploadImage, removeImage, reload: load }
+  async function submit(confirmations: {
+    confirmAccount: boolean
+    confirmAudience: boolean
+    confirmBudget: boolean
+    confirmCreative: boolean
+  }) {
+    setSaving(true)
+    try {
+      const response = await fetch(`/drafts/${draftId}/submit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify(confirmations),
+      })
+      const body = await response.json().catch(() => ({}))
+      if (response.ok) {
+        setDraft(body)
+        return null
+      }
+      return body.error ?? 'Falha ao enviar à Meta.'
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function resolveAmbiguous(action: 'retry' | 'reset_confirmed_steps') {
+    setSaving(true)
+    try {
+      const response = await fetch(`/drafts/${draftId}/submit/resolve`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ action }),
+      })
+      const body = await response.json().catch(() => ({}))
+      if (response.ok) {
+        setDraft(body)
+        return null
+      }
+      return body.error ?? 'Falha ao liberar rascunho.'
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return { draft, validation, loading, error, saving, save, uploadImage, removeImage, submit, resolveAmbiguous, reload: load }
 }

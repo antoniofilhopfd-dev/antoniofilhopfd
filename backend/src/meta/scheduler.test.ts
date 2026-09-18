@@ -31,6 +31,7 @@ function fakeClient(onCall: () => void): MetaClient {
       return { data: [], nextUrl: null } as GraphPage<never>;
     },
     getPage: async () => ({ data: [], nextUrl: null }) as GraphPage<never>,
+    post: async () => ({}) as never,
   };
 }
 

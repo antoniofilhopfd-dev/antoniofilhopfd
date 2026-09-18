@@ -2,7 +2,7 @@
 
 Aplicação nova (construída do zero, sem reaproveitar código de protótipos anteriores) para o Colégio Evolução acompanhar investimento e resultados de tráfego pago (Meta Ads), produzir relatórios e, em etapas futuras, preparar campanhas pausadas para revisão.
 
-Status atual: **Etapa 9 — Rascunhos**, concluída, mais o **incremento "Área Administrativa / Área de Relatórios"** (perfil Relatório, Relatório Executivo, XLSX). MVP de acompanhamento (Etapas 1–8) já entregue; integração Meta segue pendente de credenciais reais. Demais etapas do planejamento original (criação pausada, Google Sheets) seguem, uma de cada vez.
+Status atual: **Etapa 10 — Criação pausada**, concluída, mais o **incremento "Área Administrativa / Área de Relatórios"** (perfil Relatório, Relatório Executivo, XLSX). MVP de acompanhamento (Etapas 1–8) e Rascunhos (Etapa 9) já entregues; integração Meta segue pendente de credenciais reais para homologação em produção. Demais etapas do planejamento original (Google Sheets) seguem, uma de cada vez.
 
 ## Arquitetura
 
@@ -118,6 +118,15 @@ O frontend faz proxy de `/health`, `/auth`, `/users`, `/metrics`, `/campaigns`, 
 - Bloco "Prévia do anúncio" (Seção 7): imagem, página, título, texto, destino e botão de chamada para ação juntos.
 - Permissões: Admin e Gestor criam/editam; Gestor só vê/edita os próprios rascunhos, Admin vê todos; Visualizador não pode criar nem editar.
 - Durante a validação manual encontrei e corrigi dois bugs reais de UX: (1) salvar um campo (`onBlur`) resincronizava TODOS os campos locais a partir da resposta do servidor, apagando edições ainda não salvas de outros campos preenchidos na mesma interação — corrigido sincronizando o estado local só na primeira carga do rascunho; (2) requisições de salvamento/validação concorrentes podiam chegar fora de ordem e sobrescrever dados mais novos com uma resposta mais antiga — corrigido com um número de sequência que descarta respostas desatualizadas.
+
+## Criação pausada (Etapa 10)
+
+- Envia um rascunho completo (Etapa 9) à Meta criando Campanha → Conjunto de anúncios → Criativo → Anúncio, sempre com `status: PAUSED` — **nunca ativa nada automaticamente** (Seção 12).
+- `POST /drafts/:id/submit`: exige as quatro confirmações explícitas do operador (conta, público, orçamento, criativo) no corpo da requisição, só aceita de `ADMIN` ou `MANAGER` com a permissão individual `canSubmitToMeta=true` (concedida por um Admin), só avança se o rascunho estiver completo (`validateDraft`) e a integração Meta configurada.
+- **Resumível e à prova de concorrência**: cada identificador (`submittedCampaignExternalId`, `submittedAdSetExternalId`, `submittedCreativeExternalId`, `submittedAdExternalId`) é persistido assim que a Meta confirma aquele objeto. Uma nova tentativa após falha clara (`FAILED`) pula as etapas já confirmadas em vez de recriar tudo. Um lock atômico (`prisma.draft.updateMany` condicionado ao status atual) impede duas submissões simultâneas do mesmo rascunho.
+- **Resposta ambígua nunca é reenviada sozinha**: o `MetaClient.post` (novo, usado só para criação) nunca tenta de novo em caso de falha de rede ou resposta que não pôde ser interpretada — vira `MetaApiError("ambiguous", …)`, e o rascunho é marcado `AMBIGUOUS_BLOCKED`. Enquanto bloqueado, `submitDraft` recusa qualquer nova tentativa automática. Só um Administrador libera, via `POST /drafts/:id/submit/resolve`, depois de conferir manualmente na Meta se o objeto foi ou não criado (Seção 12: "resposta ambígua... deve bloquear reenvio e encaminhar conferência administrativa").
+- Frontend: aba Revisão ganhou o bloco "Envio à Meta (criação pausada)" com as quatro caixas de confirmação, status atual do envio, mensagem de erro da última tentativa e, quando bloqueado por ambiguidade, os dois botões de resolução restritos a Administrador.
+- **Sem credenciais reais da Meta neste ambiente** — testado integralmente com um `MetaClient` falso injetável (padrão já usado nas Etapas 6/7): sucesso completo, retomada após falha clara, bloqueio por ambiguidade e permanência do bloqueio em tentativas seguintes, concorrência, confirmações obrigatórias, rascunho incompleto, permissão de Gestor com e sem `canSubmitToMeta`. Validado manualmente na interface (Playwright) simulando os estados "não enviado", "bloqueado por ambiguidade" e a liberação pelo Administrador; o envio real (que exigiria `META_ACCESS_TOKEN`/`META_AD_ACCOUNT_ID`) mostra corretamente "Integração Meta não configurada." e não segue adiante — homologação com a Meta real fica pendente de credenciais.
 
 ## Incremento: Área Administrativa / Área de Relatórios (Relatório Executivo)
 

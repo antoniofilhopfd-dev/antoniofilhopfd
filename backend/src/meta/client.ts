@@ -1,6 +1,15 @@
 import { META_API_VERSION, META_GRAPH_HOST, getMetaConfig } from "./config";
 
-export type MetaErrorKind = "invalid_token" | "permission" | "rate_limit" | "not_configured" | "unknown";
+export type MetaErrorKind =
+  | "invalid_token"
+  | "permission"
+  | "rate_limit"
+  | "not_configured"
+  | "unknown"
+  // Resposta indeterminada (ex.: falha de rede durante uma criação) — não
+  // se sabe se a Meta processou o pedido. Nunca reenviar automaticamente
+  // nesse caso (Seção 12).
+  | "ambiguous";
 
 export class MetaApiError extends Error {
   kind: MetaErrorKind;
@@ -22,6 +31,10 @@ export type GraphPage<T> = {
 export interface MetaClient {
   get<T>(path: string, params?: Record<string, string>): Promise<GraphPage<T>>;
   getPage<T>(url: string): Promise<GraphPage<T>>;
+  // Criação (POST). Diferente de get/getPage: NUNCA tenta de novo sozinho
+  // (nem em 429) — uma falha de rede aqui vira MetaApiError("ambiguous",…)
+  // porque não há como saber se o objeto foi criado do lado da Meta.
+  post<T>(path: string, body: Record<string, unknown>): Promise<T>;
 }
 
 function mapErrorResponse(body: unknown): MetaApiError {
@@ -96,6 +109,49 @@ export function createMetaClient(): MetaClient {
     },
     async getPage<T>(url: string) {
       return fetchAndParse<T>(url);
+    },
+    async post<T>(path: string, body: Record<string, unknown>): Promise<T> {
+      if (!configured) {
+        throw new MetaApiError("not_configured", "Integração Meta não configurada (token/conta ausentes).");
+      }
+
+      const url = new URL(`https://${META_GRAPH_HOST}/${META_API_VERSION}/${path}`);
+      url.searchParams.set("access_token", accessToken ?? "");
+
+      let response: Response;
+      try {
+        response = await fetch(url.toString(), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+      } catch {
+        // Falha de rede: não sabemos se a Meta recebeu/processou o
+        // pedido de criação. Tratar como ambíguo, nunca como "falhou
+        // com certeza" (que permitiria reenviar).
+        throw new MetaApiError("ambiguous", "Falha de rede ao criar objeto na Meta; resultado indeterminado.");
+      }
+
+      let parsed: unknown;
+      try {
+        parsed = await response.json();
+      } catch {
+        throw new MetaApiError(
+          "ambiguous",
+          "Resposta da Meta não pôde ser interpretada; resultado indeterminado."
+        );
+      }
+
+      if (!response.ok) {
+        const hasErrorShape =
+          typeof parsed === "object" && parsed !== null && "error" in (parsed as Record<string, unknown>);
+        if (hasErrorShape) {
+          throw mapErrorResponse(parsed);
+        }
+        throw new MetaApiError("ambiguous", "Resposta de erro da Meta em formato inesperado.");
+      }
+
+      return parsed as T;
     },
   };
 }

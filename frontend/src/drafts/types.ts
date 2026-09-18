@@ -7,6 +7,16 @@ export const CTA_LABEL: Record<CallToAction, string> = {
   GARANTA_JA: 'Garanta já',
 }
 
+export type DraftSubmissionStatus = 'NOT_SUBMITTED' | 'SUBMITTING' | 'SUBMITTED' | 'FAILED' | 'AMBIGUOUS_BLOCKED'
+
+export const SUBMISSION_STATUS_LABEL: Record<DraftSubmissionStatus, string> = {
+  NOT_SUBMITTED: 'Não enviado',
+  SUBMITTING: 'Enviando…',
+  SUBMITTED: 'Enviado (pausado) para a Meta',
+  FAILED: 'Falha no envio anterior',
+  AMBIGUOUS_BLOCKED: 'Bloqueado — resultado indeterminado, aguarda conferência administrativa',
+}
+
 export type Draft = {
   id: string
   createdBy: { id: string; name: string }
@@ -26,6 +36,14 @@ export type Draft = {
   imageOriginalName: string | null
   createdAt: string
   updatedAt: string
+  submissionStatus: DraftSubmissionStatus
+  submittedCampaignExternalId: string | null
+  submittedAdSetExternalId: string | null
+  submittedCreativeExternalId: string | null
+  submittedAdExternalId: string | null
+  submittedAt: string | null
+  submittedById: string | null
+  lastSubmissionError: string | null
 }
 
 export type DraftValidation = {

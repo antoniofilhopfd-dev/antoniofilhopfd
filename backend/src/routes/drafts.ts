@@ -16,6 +16,7 @@ import {
   updateDraft,
 } from "../drafts/service";
 import { validateDraft } from "../drafts/validation";
+import { SubmissionError, resolveAmbiguousSubmission, submitDraft } from "../drafts/submissionService";
 
 export const draftsRouter = Router();
 
@@ -49,7 +50,32 @@ function serializeDraft(draft: NonNullable<Awaited<ReturnType<typeof getDraft>>>
     imageOriginalName: draft.imageOriginalName,
     createdAt: draft.createdAt,
     updatedAt: draft.updatedAt,
+    submissionStatus: draft.submissionStatus,
+    submittedCampaignExternalId: draft.submittedCampaignExternalId,
+    submittedAdSetExternalId: draft.submittedAdSetExternalId,
+    submittedCreativeExternalId: draft.submittedCreativeExternalId,
+    submittedAdExternalId: draft.submittedAdExternalId,
+    submittedAt: draft.submittedAt,
+    submittedById: draft.submittedById,
+    lastSubmissionError: draft.lastSubmissionError,
   };
+}
+
+function submissionErrorStatus(code: SubmissionError["code"]): number {
+  switch (code) {
+    case "not_configured":
+    case "in_progress":
+    case "blocked_ambiguous":
+      return 409;
+    case "incomplete":
+    case "confirmation_required":
+      return 400;
+    case "no_permission":
+      return 403;
+    case "rejected":
+    default:
+      return 502;
+  }
 }
 
 async function ensureDraftAccess(
@@ -183,6 +209,75 @@ draftsRouter.delete(
     }
     const updated = await deleteDraftImage(req.params.id);
     res.json(serializeDraft(updated));
+  }
+);
+
+draftsRouter.post(
+  "/drafts/:id/submit",
+  requireRole(UserRole.ADMIN, UserRole.MANAGER),
+  async (req, res) => {
+    const access = await ensureDraftAccess(req, req.params.id);
+    if ("error" in access) {
+      return res.status(access.error).json({ error: access.error === 404 ? "Rascunho não encontrado." : "Sem permissão." });
+    }
+
+    const body = req.body ?? {};
+    const confirmations = {
+      confirmAccount: body.confirmAccount === true,
+      confirmAudience: body.confirmAudience === true,
+      confirmBudget: body.confirmBudget === true,
+      confirmCreative: body.confirmCreative === true,
+    };
+
+    try {
+      await submitDraft(
+        req.params.id,
+        {
+          id: req.currentUser!.id,
+          role: req.currentUser!.role,
+          canSubmitToMeta: req.currentUser!.canSubmitToMeta,
+        },
+        confirmations
+      );
+      const updated = await getDraft(req.params.id);
+      res.json(serializeDraft(updated!));
+    } catch (error) {
+      if (error instanceof SubmissionError) {
+        return res
+          .status(submissionErrorStatus(error.code))
+          .json({ error: error.message, code: error.code, fieldErrors: error.fieldErrors });
+      }
+      throw error;
+    }
+  }
+);
+
+draftsRouter.post(
+  "/drafts/:id/submit/resolve",
+  requireRole(UserRole.ADMIN),
+  async (req, res) => {
+    const access = await ensureDraftAccess(req, req.params.id);
+    if ("error" in access) {
+      return res.status(access.error).json({ error: access.error === 404 ? "Rascunho não encontrado." : "Sem permissão." });
+    }
+
+    const action = req.body?.action;
+    if (action !== "retry" && action !== "reset_confirmed_steps") {
+      return res.status(400).json({ error: "Ação inválida. Use 'retry' ou 'reset_confirmed_steps'." });
+    }
+
+    try {
+      await resolveAmbiguousSubmission(req.params.id, action);
+      const updated = await getDraft(req.params.id);
+      res.json(serializeDraft(updated!));
+    } catch (error) {
+      if (error instanceof SubmissionError) {
+        return res
+          .status(submissionErrorStatus(error.code))
+          .json({ error: error.message, code: error.code });
+      }
+      throw error;
+    }
   }
 );
 

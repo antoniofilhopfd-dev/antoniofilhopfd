@@ -8,6 +8,7 @@
 // Etapa 9: Draft (rascunhos de campanha/conjunto/anúncio, com imagem).
 // Incremento "Relatório Executivo": ReportConclusion (conclusão do
 // responsável por semana) + perfil Relatório (reaproveita VIEWER).
+// Etapa 10: campos de envio (criação pausada) no Draft.
 // Demais modelos de domínio entram na etapa 10.
 
 generator client {
@@ -54,6 +55,7 @@ model User {
   weeklyObservations WeeklyObservation[]
   drafts             Draft[]
   reportConclusions  ReportConclusion[]
+  submittedDrafts    Draft[] @relation("DraftSubmittedBy")
 }
 
 model Session {
@@ -276,10 +278,34 @@ model Draft {
   imageMimeType     String?
   imageSize         Int?
 
+  // Envio (Etapa 10 — criação pausada). Cada identificador é persistido
+  // assim que a Meta confirma a criação daquele objeto, permitindo
+  // retomar só a partir do que já foi criado (Seção 12: "Impedir
+  // concorrência e repetição... retomar somente etapas seguramente
+  // confirmadas"). AMBIGUOUS_BLOCKED trava reenvio automático quando a
+  // resposta da Meta é indeterminada (ex.: falha de rede na criação).
+  submissionStatus            DraftSubmissionStatus @default(NOT_SUBMITTED)
+  submittedCampaignExternalId String?
+  submittedAdSetExternalId    String?
+  submittedCreativeExternalId String?
+  submittedAdExternalId       String?
+  submittedAt                 DateTime?
+  submittedById                String?
+  submittedBy                  User?    @relation("DraftSubmittedBy", fields: [submittedById], references: [id])
+  lastSubmissionError          String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([createdById])
+}
+
+enum DraftSubmissionStatus {
+  NOT_SUBMITTED
+  SUBMITTING
+  SUBMITTED
+  FAILED
+  AMBIGUOUS_BLOCKED
 }
 
 // Conclusão do responsável (Admin/Gestor) por semana — campo manual,

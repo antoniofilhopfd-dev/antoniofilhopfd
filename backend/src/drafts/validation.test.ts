@@ -24,6 +24,14 @@ function baseDraft(overrides: Partial<Draft> = {}): Draft {
     imageSize: 1000,
     createdAt: new Date(),
     updatedAt: new Date(),
+    submissionStatus: "NOT_SUBMITTED" as Draft["submissionStatus"],
+    submittedCampaignExternalId: null,
+    submittedAdSetExternalId: null,
+    submittedCreativeExternalId: null,
+    submittedAdExternalId: null,
+    submittedAt: null,
+    submittedById: null,
+    lastSubmissionError: null,
     ...overrides,
   };
 }

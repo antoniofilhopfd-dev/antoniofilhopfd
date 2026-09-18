@@ -11,6 +11,7 @@ function fakeClient(handlers: {
   return {
     get: (path, params) => (handlers.get ? (handlers.get(path, params) as Promise<GraphPage<never>>) : Promise.resolve({ data: [], nextUrl: null })),
     getPage: () => Promise.resolve({ data: [], nextUrl: null }),
+    post: () => Promise.reject(new Error("post não utilizado neste teste")),
   };
 }
 
@@ -289,6 +290,7 @@ describe("robustez (Etapa 7)", () => {
       getPage: async () => {
         throw new MetaApiError("rate_limit", "Limite de taxa atingido a meio da paginação.");
       },
+      post: () => Promise.reject(new Error("post não utilizado neste teste")),
     };
 
     await expect(syncInsights(undefined, 30, client)).rejects.toThrow(/Limite de taxa/);

@@ -3,7 +3,7 @@ import { useAuth } from '../auth/AuthContext'
 import { ErrorState } from '../components/states/ErrorState'
 import { LoadingState } from '../components/states/LoadingState'
 import { AdPreview } from './AdPreview'
-import { CTA_LABEL } from './types'
+import { CTA_LABEL, SUBMISSION_STATUS_LABEL } from './types'
 import type { CallToAction } from './types'
 import { useDraft } from './useDraft'
 import './drafts.css'
@@ -24,10 +24,18 @@ type DraftEditorProps = {
 
 export function DraftEditor({ draftId, onBack }: DraftEditorProps) {
   const { user } = useAuth()
-  const { draft, validation, loading, error, save, uploadImage, removeImage } = useDraft(draftId)
+  const { draft, validation, loading, error, saving, save, uploadImage, removeImage, submit, resolveAmbiguous } =
+    useDraft(draftId)
   const [tab, setTab] = useState<Tab>('campanha')
   const [imageError, setImageError] = useState<string | null>(null)
   const [local, setLocal] = useState<Record<string, string>>({})
+  const [confirmations, setConfirmations] = useState({
+    confirmAccount: false,
+    confirmAudience: false,
+    confirmBudget: false,
+    confirmCreative: false,
+  })
+  const [submitError, setSubmitError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   // Sincroniza o estado local a partir do servidor só na primeira carga
   // deste rascunho. Sem isso, salvar um campo (via onBlur) reescreve
@@ -72,6 +80,20 @@ export function DraftEditor({ draftId, onBack }: DraftEditorProps) {
     if (draft && value !== String((draft as unknown as Record<string, unknown>)[name] ?? '')) {
       save({ [name]: numeric ? Number(value) : value })
     }
+  }
+
+  const canSubmit = user?.role === 'ADMIN' || (user?.role === 'MANAGER' && user.canSubmitToMeta)
+
+  async function handleSubmit() {
+    setSubmitError(null)
+    const errorMessage = await submit(confirmations)
+    if (errorMessage) setSubmitError(errorMessage)
+  }
+
+  async function handleResolve(action: 'retry' | 'reset_confirmed_steps') {
+    setSubmitError(null)
+    const errorMessage = await resolveAmbiguous(action)
+    if (errorMessage) setSubmitError(errorMessage)
   }
 
   async function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
@@ -291,13 +313,12 @@ export function DraftEditor({ draftId, onBack }: DraftEditorProps) {
             <h2 style={{ marginBottom: 12 }}>Revisão</h2>
             {validation?.complete ? (
               <p className="reach-note" style={{ color: 'var(--color-success)', marginBottom: 12 }}>
-                Rascunho completo e válido. Envio à Meta (com confirmação e permissão individual) entra na Etapa 10 —
-                nada é enviado a partir daqui.
+                Rascunho completo e válido.
               </p>
             ) : (
               <div style={{ marginBottom: 12 }}>
                 <p className="reach-note" style={{ marginBottom: 6 }}>
-                  Pendências antes de poder ser enviado (Etapa 10):
+                  Pendências antes de poder ser enviado:
                 </p>
                 <ul>
                   {Object.values(errors).map((msg, i) => (
@@ -309,6 +330,123 @@ export function DraftEditor({ draftId, onBack }: DraftEditorProps) {
               </div>
             )}
             <AdPreview draft={draft} imageUrl={imageUrl} />
+
+            <div className="card" style={{ marginTop: 16 }}>
+              <h3 style={{ marginBottom: 8 }}>Envio à Meta (criação pausada)</h3>
+              <p className="reach-note" style={{ marginBottom: 12 }}>
+                Status atual: <strong>{SUBMISSION_STATUS_LABEL[draft.submissionStatus]}</strong>
+              </p>
+              {draft.lastSubmissionError && (
+                <p className="form-error" style={{ marginBottom: 12 }}>
+                  {draft.lastSubmissionError}
+                </p>
+              )}
+
+              {draft.submissionStatus === 'SUBMITTED' && (
+                <p className="reach-note">
+                  Campanha, conjunto, criativo e anúncio foram criados na Meta com status <strong>PAUSADO</strong>.
+                  Nenhuma ativação automática ocorre a partir daqui.
+                </p>
+              )}
+
+              {draft.submissionStatus === 'AMBIGUOUS_BLOCKED' && (
+                <div>
+                  <p className="reach-note" style={{ marginBottom: 12 }}>
+                    O resultado da última tentativa de criação na Meta ficou indeterminado. Reenvio automático está
+                    bloqueado até conferência administrativa direto na Meta.
+                  </p>
+                  {user?.role === 'ADMIN' ? (
+                    <div style={{ display: 'flex', gap: 12 }}>
+                      <button type="button" className="button" onClick={() => handleResolve('retry')} disabled={saving}>
+                        Confirmo que não foi criada — liberar nova tentativa
+                      </button>
+                      <button
+                        type="button"
+                        className="button button--secondary"
+                        onClick={() => handleResolve('reset_confirmed_steps')}
+                        disabled={saving}
+                      >
+                        Confirmo que foi criada na Meta — manter bloqueado
+                      </button>
+                    </div>
+                  ) : (
+                    <p className="reach-note">Só um Administrador pode liberar este rascunho.</p>
+                  )}
+                </div>
+              )}
+
+              {(draft.submissionStatus === 'NOT_SUBMITTED' || draft.submissionStatus === 'FAILED') && (
+                <div>
+                  {!canSubmit && (
+                    <p className="reach-note" style={{ marginBottom: 12 }}>
+                      Seu perfil não tem permissão para enviar rascunhos à Meta. Peça a um Administrador para
+                      conceder a permissão individual.
+                    </p>
+                  )}
+                  <div className="field" style={{ marginBottom: 8 }}>
+                    <label>
+                      <input
+                        type="checkbox"
+                        checked={confirmations.confirmAccount}
+                        disabled={!canSubmit}
+                        onChange={(e) => setConfirmations((prev) => ({ ...prev, confirmAccount: e.target.checked }))}
+                      />{' '}
+                      Confirmo a conta de anúncios de destino
+                    </label>
+                  </div>
+                  <div className="field" style={{ marginBottom: 8 }}>
+                    <label>
+                      <input
+                        type="checkbox"
+                        checked={confirmations.confirmAudience}
+                        disabled={!canSubmit}
+                        onChange={(e) => setConfirmations((prev) => ({ ...prev, confirmAudience: e.target.checked }))}
+                      />{' '}
+                      Confirmo o público (país e faixa etária)
+                    </label>
+                  </div>
+                  <div className="field" style={{ marginBottom: 8 }}>
+                    <label>
+                      <input
+                        type="checkbox"
+                        checked={confirmations.confirmBudget}
+                        disabled={!canSubmit}
+                        onChange={(e) => setConfirmations((prev) => ({ ...prev, confirmBudget: e.target.checked }))}
+                      />{' '}
+                      Confirmo o orçamento diário
+                    </label>
+                  </div>
+                  <div className="field" style={{ marginBottom: 12 }}>
+                    <label>
+                      <input
+                        type="checkbox"
+                        checked={confirmations.confirmCreative}
+                        disabled={!canSubmit}
+                        onChange={(e) => setConfirmations((prev) => ({ ...prev, confirmCreative: e.target.checked }))}
+                      />{' '}
+                      Confirmo o criativo (texto, imagem e URL)
+                    </label>
+                  </div>
+                  {submitError && <p className="form-error" style={{ marginBottom: 12 }}>{submitError}</p>}
+                  <button
+                    type="button"
+                    className="button"
+                    disabled={
+                      !canSubmit ||
+                      !validation?.complete ||
+                      saving ||
+                      !confirmations.confirmAccount ||
+                      !confirmations.confirmAudience ||
+                      !confirmations.confirmBudget ||
+                      !confirmations.confirmCreative
+                    }
+                    onClick={handleSubmit}
+                  >
+                    Confirmar e enviar à Meta (criação pausada)
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>
