@@ -1,0 +1,171 @@
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 100;
+  background: var(--color-navy);
+  color: #fff;
+  padding: 8px 16px;
+  border-radius: 0 0 6px 0;
+}
+.skip-link:focus {
+  left: 0;
+}
+
+.app-shell {
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-shell__topbar {
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px;
+  background: var(--color-navy);
+  color: #fff;
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+
+.app-shell__menu-toggle {
+  background: transparent;
+  border: none;
+  color: #fff;
+  font-size: 22px;
+  line-height: 1;
+  padding: 6px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.app-shell__menu-toggle:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.app-shell__logo-mobile {
+  height: 28px;
+  width: auto;
+}
+
+.app-shell__user {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+.app-shell__user-role {
+  opacity: 0.75;
+}
+
+.app-shell__body {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+
+.app-shell__sidebar {
+  width: var(--sidebar-width);
+  flex-shrink: 0;
+  background: var(--color-navy);
+  color: #fff;
+  padding: 24px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.app-shell__logo-desktop {
+  height: 34px;
+  width: auto;
+  align-self: flex-start;
+}
+
+.app-shell__nav-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.app-shell__nav-link {
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.85);
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 15px;
+  cursor: pointer;
+}
+.app-shell__nav-link:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+.app-shell__nav-link--active {
+  background: var(--color-orange);
+  color: #fff;
+  font-weight: 700;
+}
+
+.app-shell__nav-link:focus-visible,
+.app-shell__menu-toggle:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px #fff, 0 0 0 5px var(--color-orange);
+}
+
+.app-shell__backdrop {
+  display: none;
+}
+
+.app-shell__content {
+  flex: 1;
+  min-width: 0;
+  padding: 24px 32px;
+  overflow-x: hidden;
+}
+
+@media (max-width: 900px) {
+  .app-shell__topbar {
+    display: flex;
+  }
+
+  .app-shell__body {
+    position: relative;
+  }
+
+  .app-shell__sidebar {
+    position: fixed;
+    inset: 0 25% 0 0;
+    z-index: 30;
+    transform: translateX(-100%);
+    transition: transform 0.2s ease;
+    overflow-y: auto;
+  }
+  .app-shell__sidebar--open {
+    transform: translateX(0);
+  }
+  .app-shell__logo-desktop {
+    display: none;
+  }
+
+  .app-shell__backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 25;
+    background: rgba(20, 38, 92, 0.4);
+    border: none;
+    padding: 0;
+    cursor: pointer;
+  }
+
+  .app-shell__content {
+    padding: 16px;
+  }
+}

@@ -1,0 +1,29 @@
+.login-screen {
+  min-height: 100svh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-navy);
+  padding: 16px;
+}
+
+.login-screen__card {
+  width: 100%;
+  max-width: 360px;
+  text-align: left;
+}
+
+.login-screen__logo {
+  height: 40px;
+  width: auto;
+  margin-bottom: 20px;
+}
+
+.login-screen__title {
+  font-size: 20px;
+  margin-bottom: 20px;
+}
+
+.login-screen button[type='submit'] {
+  width: 100%;
+}
