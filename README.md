@@ -2,7 +2,7 @@
 
 Aplicação nova (construída do zero, sem reaproveitar código de protótipos anteriores) para o Colégio Evolução acompanhar investimento e resultados de tráfego pago (Meta Ads), produzir relatórios e, em etapas futuras, preparar campanhas pausadas para revisão.
 
-Status atual: **Etapa 6 — Leitura Meta limitada**, concluída tecnicamente e testada com respostas simuladas (Etapas 1–5 também concluídas). Operação real pendente de credenciais Meta — ver seção abaixo. Demais etapas seguem o planejamento aprovado, uma de cada vez.
+Status atual: **Etapa 7 — Sincronização robusta**, concluída tecnicamente e testada com respostas simuladas (Etapas 1–6 também concluídas). Operação real pendente de credenciais Meta — ver seção abaixo. Demais etapas seguem o planejamento aprovado, uma de cada vez.
 
 ## Arquitetura
 
@@ -90,6 +90,15 @@ O frontend faz proxy de `/health`, `/auth`, `/users`, `/metrics`, `/campaigns`, 
 - Log de cada sincronização (`SyncLog`) com status, itens processados e erro, visível no painel Administração → Integração Meta.
 - Toda a lógica de sincronização foi testada com um cliente Meta **simulado** (sem rede real) — 13 testes cobrindo conexão ok/token inválido/não configurado, integridade da hierarquia, preservação de classificação manual, rejeição de lote inconsistente, trava de concorrência, gravação de métricas e restrição de paginação.
 - **Não afirmar que a leitura Meta está "pronta para produção"**: falta homologação com uma conta real autorizada (Seção 3/6 da especificação).
+
+## Sincronização robusta (Etapa 7)
+
+- Dois modos distintos no painel: "Atualizar recentes" (7 dias) e "Importação histórica" (90 dias), ambos via o mesmo caminho transacional da Etapa 6.
+- Agendamento automático opcional via `META_SYNC_INTERVAL_MINUTES` (minutos): só roda enquanto o processo Node deste servidor estiver de pé — **não equivale a hospedagem permanente** (VPS foi adiada pelo usuário, Seção 4). Painel mostra "Agendamento automático: Ativo/Inativo" com base no estado real do processo, nunca simulado.
+- Falha a meio da paginação de métricas não grava nenhum dado parcial (a busca de todas as páginas acontece antes de a transação começar a escrever) — verificado em teste automatizado.
+- Execução repetida da sincronização (hierarquia + métricas) não duplica registros — upsert por identificador estável, testado rodando duas vezes seguidas.
+- Trava de concorrência (Etapa 6) reforçada com teste de disparo real do agendador em intervalo curto.
+- Configurar: adicionar `META_SYNC_INTERVAL_MINUTES` ao `.env` do backend (deixar ausente mantém o agendamento desligado).
 
 ## Testes
 

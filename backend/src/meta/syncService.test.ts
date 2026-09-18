@@ -250,3 +250,103 @@ describe("uso do MetaApiError para diferenciar tipos de falha", () => {
   });
 });
 
+describe("robustez (Etapa 7)", () => {
+  it("uma falha no meio da paginação de métricas não grava dado parcial", async () => {
+    const campaign = await prisma.campaign.create({
+      data: { externalId: "camp-1", name: "C", status: EntityStatus.ACTIVE, objective: "OUTCOME_TRAFFIC", isDemo: false },
+    });
+    const adSet = await prisma.adSet.create({
+      data: { externalId: "adset-1", campaignId: campaign.id, name: "A", status: EntityStatus.ACTIVE, dailyBudget: 10, isDemo: false },
+    });
+    const ad = await prisma.ad.create({
+      data: { externalId: "ad-1", adSetId: adSet.id, name: "Anúncio", status: EntityStatus.ACTIVE, isDemo: false },
+    });
+
+    let calls = 0;
+    const client: MetaClient = {
+      get: async () => {
+        calls += 1;
+        // Primeira página tem dado válido, mas indica haver uma próxima
+        // página que falhará — collectAllPages busca tudo antes de a
+        // transação começar a gravar, então nada deve ser persistido.
+        return {
+          data: [
+            {
+              ad_id: "ad-1",
+              date_start: "2026-01-05",
+              spend: "10",
+              impressions: "100",
+              clicks: "5",
+              inline_link_clicks: "3",
+              reach: "80",
+              frequency: "1.1",
+              actions: [],
+            },
+          ],
+          nextUrl: "https://graph.facebook.com/v21.0/act_123/insights?after=x",
+        } as GraphPage<never>;
+      },
+      getPage: async () => {
+        throw new MetaApiError("rate_limit", "Limite de taxa atingido a meio da paginação.");
+      },
+    };
+
+    await expect(syncInsights(undefined, 30, client)).rejects.toThrow(/Limite de taxa/);
+    expect(calls).toBe(1);
+
+    const metrics = await prisma.adDailyMetric.findMany({ where: { adId: ad.id } });
+    expect(metrics).toHaveLength(0);
+
+    const log = await prisma.syncLog.findFirst({ where: { type: "insights" } });
+    expect(log?.status).toBe("failed");
+  });
+
+  it("executar a sincronização duas vezes seguidas não duplica hierarquia nem métricas", async () => {
+    const client = fakeClient({
+      get: async (path) => {
+        if (path === "act_123/campaigns") {
+          return { data: [{ id: "camp-1", name: "Campanha", status: "ACTIVE", objective: "OUTCOME_TRAFFIC" }], nextUrl: null };
+        }
+        if (path === "camp-1/adsets") {
+          return { data: [{ id: "adset-1", name: "Conjunto", status: "ACTIVE", daily_budget: "1000" }], nextUrl: null };
+        }
+        if (path === "adset-1/ads") {
+          return { data: [{ id: "ad-1", name: "Anúncio", status: "ACTIVE" }], nextUrl: null };
+        }
+        if (path === "act_123/insights") {
+          return {
+            data: [
+              {
+                ad_id: "ad-1",
+                date_start: "2026-01-05",
+                spend: "10",
+                impressions: "100",
+                clicks: "5",
+                inline_link_clicks: "3",
+                reach: "80",
+                frequency: "1.1",
+                actions: [],
+              },
+            ],
+            nextUrl: null,
+          };
+        }
+        return { data: [], nextUrl: null };
+      },
+    });
+
+    await syncHierarchy(undefined, client);
+    await syncInsights(undefined, 30, client);
+    await syncHierarchy(undefined, client);
+    await syncInsights(undefined, 30, client);
+
+    const campaigns = await prisma.campaign.findMany({ where: { externalId: "camp-1" } });
+    expect(campaigns).toHaveLength(1);
+
+    const metrics = await prisma.adDailyMetric.findMany({
+      where: { date: new Date("2026-01-05T00:00:00.000Z") },
+    });
+    expect(metrics).toHaveLength(1);
+  });
+});
+

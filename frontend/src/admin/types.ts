@@ -20,4 +20,6 @@ export type MetaConnectionStatus = {
   lastSyncError: string | null
   isSyncing: boolean
   recentLogs: SyncLog[]
+  schedulerRunning: boolean
+  schedulerIntervalMinutes: number | null
 }

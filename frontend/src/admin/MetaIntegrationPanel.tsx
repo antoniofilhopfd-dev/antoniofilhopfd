@@ -25,7 +25,7 @@ export function MetaIntegrationPanel() {
   const [error, setError] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
   const [checking, setChecking] = useState(false)
-  const [syncing, setSyncing] = useState(false)
+  const [syncingKind, setSyncingKind] = useState<'recent' | 'historical' | null>(null)
 
   function load() {
     setLoading(true)
@@ -62,15 +62,15 @@ export function MetaIntegrationPanel() {
     }
   }
 
-  async function handleSync() {
-    setSyncing(true)
+  async function handleSync(kind: 'recent' | 'historical') {
+    setSyncingKind(kind)
     setActionError(null)
     try {
       const response = await fetch('/integrations/meta/sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'same-origin',
-        body: JSON.stringify({ daysBack: 30 }),
+        body: JSON.stringify({ daysBack: kind === 'recent' ? 7 : 90 }),
       })
       const body = await response.json().catch(() => ({}))
       if (!response.ok) {
@@ -80,7 +80,7 @@ export function MetaIntegrationPanel() {
     } catch (err) {
       setActionError(err instanceof Error ? err.message : 'Falha na sincronização.')
     } finally {
-      setSyncing(false)
+      setSyncingKind(null)
     }
   }
 
@@ -122,6 +122,14 @@ export function MetaIntegrationPanel() {
             {status.lastSyncStatus ? ` (${status.lastSyncStatus === 'success' ? 'sucesso' : 'falha'})` : ''}
           </dd>
         </div>
+        <div>
+          <dt>Agendamento automático</dt>
+          <dd>
+            {status.schedulerRunning
+              ? `Ativo — a cada ${status.schedulerIntervalMinutes} min (só enquanto o servidor estiver rodando)`
+              : 'Inativo'}
+          </dd>
+        </div>
       </dl>
 
       {status.lastCheckedError && (
@@ -140,11 +148,19 @@ export function MetaIntegrationPanel() {
         </button>
         <button
           type="button"
-          className="button button--primary"
-          onClick={handleSync}
-          disabled={syncing || !status.configured || status.isSyncing}
+          className="button button--secondary"
+          onClick={() => handleSync('recent')}
+          disabled={syncingKind !== null || !status.configured || status.isSyncing}
         >
-          {syncing || status.isSyncing ? 'Sincronizando…' : 'Sincronizar últimos 30 dias'}
+          {syncingKind === 'recent' ? 'Atualizando…' : 'Atualizar recentes (7 dias)'}
+        </button>
+        <button
+          type="button"
+          className="button button--primary"
+          onClick={() => handleSync('historical')}
+          disabled={syncingKind !== null || !status.configured || status.isSyncing}
+        >
+          {syncingKind === 'historical' ? 'Importando…' : 'Importação histórica (90 dias)'}
         </button>
       </div>
 
